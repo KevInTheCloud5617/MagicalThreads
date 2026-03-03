@@ -78,4 +78,4 @@ See [`deploy/README.md`](deploy/README.md) for Azure Container Apps deployment i
 
 ## License
 
-MIT
+[GPL-3.0](LICENSE)
