@@ -59,12 +59,12 @@ body {
 /* Shooting star animation */
 @keyframes shooting-star {
   0% {
-    transform: translateX(0) translateY(0) rotate(-45deg);
+    transform: translateX(0) translateY(0) rotate(45deg);
     opacity: 1;
   }
   70% { opacity: 1; }
   100% {
-    transform: translateX(300px) translateY(300px) rotate(-45deg);
+    transform: translateX(300px) translateY(300px) rotate(45deg);
     opacity: 0;
   }
 }
@@ -122,4 +122,18 @@ body.admin-page {
 }
 body.admin-page > * > main {
   flex: none !important;
+}
+
+.shooting-star-4 {
+  top: 20%;
+  left: 70%;
+  width: 60px;
+  animation: shooting-star 0.9s ease-in-out 8s infinite;
+}
+
+.shooting-star-5 {
+  top: 45%;
+  left: 15%;
+  width: 90px;
+  animation: shooting-star 1.3s ease-in-out 4.5s infinite;
 }
