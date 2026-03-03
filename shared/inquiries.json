@@ -1,0 +1,32 @@
+[
+  {
+    "id": "co-001",
+    "name": "Sarah Johnson",
+    "email": "sarah@example.com",
+    "subject": "Custom Order Request",
+    "message": "Hi Meg! I'd love a custom crewneck with my dog's name embroidered on it. His name is Biscuit and I'd love it in a sage green color with wildflowers around the name. Size medium please!",
+    "status": "new",
+    "createdAt": "2026-02-25T14:30:00Z",
+    "notes": ""
+  },
+  {
+    "id": "co-002",
+    "name": "Emily Chen",
+    "email": "emily.chen@example.com",
+    "subject": "Custom Order Request",
+    "message": "I'm looking for 6 matching tote bags for my bridesmaids! Each with their name and a floral design. Wedding is May 15th. Is that enough time?",
+    "status": "replied",
+    "createdAt": "2026-02-24T09:15:00Z",
+    "notes": "Quoted $180 for set of 6. Waiting for confirmation."
+  },
+  {
+    "id": "co-003",
+    "name": "Mike Torres",
+    "email": "mike.t@example.com",
+    "subject": "General Inquiry",
+    "message": "Do you ship internationally? I'm in Canada and want to order a couple glass cups for my wife.",
+    "status": "new",
+    "createdAt": "2026-02-26T18:45:00Z",
+    "notes": ""
+  }
+]

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "book-lover-crewneck",
+    "name": "Book Lover Crewneck",
+    "price": 45.00,
+    "category": "crewnecks",
+    "description": "A cozy embroidered crewneck for the bookworm in your life. Features delicate book and floral stitching.",
+    "tag": "Bestseller",
+    "active": true
+  },
+  {
+    "id": "once-upon-a-time-crew",
+    "name": "\"Once Upon a Time\" Crewneck",
+    "price": 48.00,
+    "category": "crewnecks",
+    "description": "Fairytale-inspired embroidered sweatshirt with castle and star detailing.",
+    "tag": "New",
+    "active": true
+  },
+  {
+    "id": "wildflower-crewneck",
+    "name": "Wildflower Crewneck",
+    "price": 45.00,
+    "category": "crewnecks",
+    "description": "Delicate wildflower embroidery wrapping around the neckline. Available in multiple colors.",
+    "active": true
+  },
+  {
+    "id": "custom-iced-coffee-cup",
+    "name": "Custom Iced Coffee Cup",
+    "price": 22.00,
+    "category": "cups",
+    "description": "Personalized vinyl glass cup perfect for your daily iced coffee. Add any name or design.",
+    "tag": "Popular",
+    "active": true
+  },
+  {
+    "id": "disney-glass-cup",
+    "name": "Disney Inspired Glass Cup",
+    "price": 24.00,
+    "category": "cups",
+    "description": "Glass tumbler with your favorite Disney character silhouette in vinyl.",
+    "active": true
+  },
+  {
+    "id": "mama-glass-cup",
+    "name": "\"Mama\" Glass Cup",
+    "price": 22.00,
+    "category": "cups",
+    "description": "The perfect gift for mom — personalized glass cup with floral accents.",
+    "active": true
+  },
+  {
+    "id": "fairytale-tote",
+    "name": "Fairytale Tote Bag",
+    "price": 30.00,
+    "category": "totes",
+    "description": "Sturdy canvas tote with fairytale-themed embroidery. Perfect for books, groceries, or adventures.",
+    "tag": "Popular",
+    "active": true
+  },
+  {
+    "id": "book-club-tote",
+    "name": "Book Club Tote",
+    "price": 28.00,
+    "category": "totes",
+    "description": "Embroidered tote with \"Just One More Chapter\" and stack of books design.",
+    "active": true
+  },
+  {
+    "id": "custom-name-tote",
+    "name": "Custom Name Tote",
+    "price": 32.00,
+    "category": "totes",
+    "description": "Personalized tote bag with embroidered name and your choice of design elements.",
+    "active": true
+  },
+  {
+    "id": "laptop-decal-set",
+    "name": "Bookish Decal Set",
+    "price": 12.00,
+    "category": "vinyl",
+    "description": "Set of 5 vinyl decals with book-themed designs. Waterproof and durable.",
+    "active": true
+  },
+  {
+    "id": "car-decal-custom",
+    "name": "Custom Car Decal",
+    "price": 15.00,
+    "category": "vinyl",
+    "description": "Weather-resistant vinyl decal customized with your text or design.",
+    "tag": "New",
+    "active": true
+  },
+  {
+    "id": "sticker-pack-floral",
+    "name": "Floral Sticker Pack",
+    "price": 8.00,
+    "category": "vinyl",
+    "description": "Pack of 10 waterproof floral stickers. Perfect for water bottles, laptops, and journals.",
+    "active": true
+  }
+]

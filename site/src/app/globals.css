@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #1B2A4A;
+  --navy-light: #243656;
+  --navy-dark: #111D33;
+  --blue-light: #A8D0E6;
+  --blue-pale: #E8F1F8;
+  --cream: #FFF8F0;
+  --gold: #C9A96E;
+  --gold-light: #E8D5A8;
+  --white: #FFFFFF;
+  --text-dark: #1B2A4A;
+  --text-muted: #5A6B8A;
+  --green: #22C55E;
+  --red: #EF4444;
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-navy-light: var(--navy-light);
+  --color-navy-dark: var(--navy-dark);
+  --color-blue-light: var(--blue-light);
+  --color-blue-pale: var(--blue-pale);
+  --color-cream: var(--cream);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-text-dark: var(--text-dark);
+  --color-text-muted: var(--text-muted);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --font-display: var(--font-playfair);
+}
+
+body {
+  background: var(--cream);
+  color: var(--text-dark);
+}
+
+/* Fairytale sparkle animation */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Admin page: hide public nav/footer */
+body.admin-page nav:first-child,
+body.admin-page footer {
+  display: none !important;
+}
+body.admin-page {
+  display: block !important;
+}
+body.admin-page > * > main {
+  flex: none !important;
+}
