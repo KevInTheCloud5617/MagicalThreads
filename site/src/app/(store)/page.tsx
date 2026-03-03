@@ -4,13 +4,18 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Banner — exact logo bg color, image fills full width */}
-      <div className="w-full bg-[#ecd2af]">
+      <div className="relative w-full bg-[#ecd2af] overflow-hidden">
+        {/* Shooting stars */}
+        <div className="shooting-star shooting-star-1" />
+        <div className="shooting-star shooting-star-2" />
+        <div className="shooting-star shooting-star-3" />
+
         <Image
           src="/logo.jpg"
           alt="Magical Threads with Meg"
           width={1200}
           height={1200}
-          className="w-full max-w-2xl h-auto mx-auto"
+          className="w-full max-w-2xl h-auto mx-auto relative z-10"
           priority
         />
       </div>
