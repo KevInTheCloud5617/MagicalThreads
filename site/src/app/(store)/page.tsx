@@ -6,11 +6,6 @@ export default function Home() {
       {/* Banner — exact logo bg color, image fills full width */}
       <div className="relative w-full bg-[#ecd2af] overflow-hidden">
         {/* Shooting stars */}
-        <div className="shooting-star shooting-star-1" />
-        <div className="shooting-star shooting-star-2" />
-        <div className="shooting-star shooting-star-3" />
-        <div className="shooting-star shooting-star-4" />
-        <div className="shooting-star shooting-star-5" />
 
         <Image
           src="/logo.jpg"
