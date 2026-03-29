@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { sanitize } from "@/lib/sanitize";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 
 export async function GET() {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const products = await prisma.product.findMany({
     orderBy: { createdAt: "desc" },
   });
@@ -10,6 +15,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const data = await request.json();
 
   // Validation
@@ -57,6 +66,10 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const data = await request.json();
   const { id, ...updateData } = data;
 
@@ -97,6 +110,10 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await request.json();
 
   if (!id || typeof id !== "string") {
