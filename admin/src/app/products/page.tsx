@@ -9,6 +9,7 @@ interface Product {
   category: string;
   description: string;
   tag?: string;
+  image?: string;
   active: boolean;
   isExample?: boolean;
 }
@@ -33,8 +34,11 @@ export default function ProductsPage() {
     category: "crewnecks",
     description: "",
     tag: "",
+    image: "",
     active: true,
   };
+
+  const [uploading, setUploading] = useState(false);
 
   const [form, setForm] = useState(emptyProduct);
 
@@ -193,6 +197,49 @@ export default function ProductsPage() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-navy mb-1">Photo</label>
+                {form.image ? (
+                  <div className="flex items-center gap-3">
+                    <img src={form.image} alt="Preview" className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, image: "" })}
+                      className="text-sm text-red hover:text-red/70 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed border-gray-200 text-sm cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploading(true);
+                        try {
+                          const sku = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product";
+                          const fd = new FormData();
+                          fd.append("file", file);
+                          fd.append("sku", sku);
+                          const res = await fetch("/api/upload", { method: "POST", body: fd });
+                          const json = await res.json();
+                          if (json.url) setForm((prev) => ({ ...prev, image: json.url }));
+                          else alert(json.error || "Upload failed");
+                        } catch {
+                          alert("Upload failed");
+                        } finally {
+                          setUploading(false);
+                        }
+                      }}
+                    />
+                    {uploading ? "⏳ Uploading..." : "📷 Upload Photo"}
+                  </label>
+                )}
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-navy mb-1">Tag (optional)</label>
                 <input
                   type="text"
@@ -241,7 +288,7 @@ export default function ProductsPage() {
               {filtered.map((product) => (
                 <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                   <td className="px-5 py-4">
-                    <div className="font-medium text-navy text-sm flex items-center gap-2">{product.name}{product.isExample && <span className="inline-flex items-center bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-300">EXAMPLE</span>}</div>
+                    <div className="font-medium text-navy text-sm flex items-center gap-2">{product.image && <img src={product.image} alt="" className="w-10 h-10 object-cover rounded-lg border border-gray-100 flex-shrink-0" />}{product.name}{product.isExample && <span className="inline-flex items-center bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-300">EXAMPLE</span>}</div>
                     <div className="text-xs text-text-muted mt-0.5 line-clamp-1 max-w-xs">{product.description}</div>
                   </td>
                   <td className="px-5 py-4 text-sm text-text-muted">
@@ -266,7 +313,7 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button
-                      onClick={() => { setEditing(product); setForm(product); setShowForm(true); }}
+                      onClick={() => { setEditing(product); setForm({ ...product, tag: product.tag || "", image: product.image || "" }); setShowForm(true); }}
                       className="text-sm text-navy hover:text-gold transition-colors mr-3"
                     >
                       Edit

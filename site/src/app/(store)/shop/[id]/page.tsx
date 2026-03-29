@@ -10,7 +10,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
   const allProducts = await getProducts();
   const categoryInfo = categories.find((c) => c.slug === product.category);
-  const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
+  const related = allProducts.filter((p: any) => p.category === product.category && p.id !== product.id).slice(0, 3);
 
   return (
     <div>

@@ -18,12 +18,14 @@ export async function POST(request: Request) {
 
   const product = await prisma.product.create({
     data: {
+      sku: data.sku,
       name: data.name,
       slug,
       price: data.price,
       category: data.category,
       description: data.description,
       tag: data.tag || null,
+      image: data.image || null,
       active: data.active ?? true,
     },
   });

@@ -1,0 +1,59 @@
+erDiagram
+    Product {
+        string id PK "cuid"
+        string sku UK "UUID - also used for image storage path"
+        string name
+        string slug UK "URL-friendly name"
+        float price "USD"
+        string category "crewnecks|totes|cups|vinyl"
+        string description
+        string tag "optional: Bestseller, New, Popular"
+        string image "optional: Azure Blob URL"
+        boolean active "visible in storefront"
+        boolean isExample "demo data flag"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Order {
+        string id PK "cuid"
+        string stripeSessionId UK "Stripe Checkout session"
+        string stripePaymentId "Stripe payment intent"
+        string customerName
+        string customerEmail
+        float total "USD"
+        string status "pending-payment|paid|in-production|shipped|delivered|cancelled"
+        string shippingAddress "optional"
+        string trackingNumber "optional"
+        string notes
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    OrderItem {
+        string id PK "cuid"
+        string orderId FK
+        string productId FK
+        int quantity
+        float price "price at time of purchase"
+    }
+
+    Inquiry {
+        string id PK "cuid"
+        string name
+        string email
+        string subject
+        string message
+        string status "new|replied|closed"
+        string notes
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Setting {
+        string key PK
+        string value
+    }
+
+    Product ||--o{ OrderItem : "ordered as"
+    Order ||--|{ OrderItem : "contains"

@@ -24,17 +24,13 @@ export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [firstName, setFirstName] = useState<string | null>(null);
-
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/products").then((r) => r.json()),
       fetch("/api/admin/inquiries").then((r) => r.json()),
-      fetch("/api/auth/me").then((r) => r.json()),
-    ]).then(([prods, inqs, auth]) => {
+    ]).then(([prods, inqs]) => {
       setProducts(prods);
       setInquiries(inqs);
-      setFirstName(auth.firstName);
       setLoading(false);
     });
   }, []);
@@ -62,7 +58,7 @@ export default function Dashboard() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-navy">Dashboard</h1>
-        <p className="text-text-muted text-sm mt-1">{firstName ? `Welcome back, ${firstName}!` : "Welcome back!"} Here&apos;s what&apos;s happening.</p>
+        <p className="text-text-muted text-sm mt-1">Welcome back! Here&apos;s what&apos;s happening.</p>
       </div>
 
       {/* Stats */}

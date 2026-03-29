@@ -1,0 +1,20 @@
+services:
+  magical-threads:
+    build: .
+    container_name: magical-threads
+    restart: unless-stopped
+    ports:
+      - "53000:3000"
+      - "53001:3001"
+    volumes:
+      - ./shared/data:/data
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/data/store.db
+      - NEXT_PUBLIC_SITE_NAME=Magical Threads with Meg
+      - NEXT_PUBLIC_SITE_URL=https://magicalthreadswithmeg.com
+      - NEXT_PUBLIC_INSTAGRAM_HANDLE=magicalthreadswithmeg
+      - NEXT_PUBLIC_CONTACT_EMAIL=meg@magicalthreadswithmeg.com
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+      - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-product-images}

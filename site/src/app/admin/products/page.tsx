@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 
 interface Product {
   id: string;
+  sku: string;
   name: string;
   price: number;
   category: string;
   description: string;
   tag?: string;
+  image?: string;
   active: boolean;
   isExample?: boolean;
 }
@@ -29,14 +31,17 @@ export default function ProductsPage() {
 
   const emptyProduct = {
     name: "",
-    price: 0,
+    price: "",
     category: "crewnecks",
     description: "",
     tag: "",
+    image: "",
+    sku: "",
     active: true,
   };
 
   const [form, setForm] = useState(emptyProduct);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -49,12 +54,35 @@ export default function ProductsPage() {
     setLoading(false);
   }
 
-  async function handleSave() {
-    if (!form.name || !form.price) return;
-    const method = editing ? "PUT" : "POST";
-    const body = editing ? { ...form, id: editing.id } : form;
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("sku", form.sku);
+      const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setForm((prev) => ({ ...prev, image: data.url }));
+      } else {
+        alert(data.error || "Upload failed");
+      }
+    } catch {
+      alert("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
-    await fetch("/api/products", {
+  async function handleSave() {
+    const priceNum = parseFloat(form.price);
+    if (!form.name || !priceNum || isNaN(priceNum)) return;
+    const method = editing ? "PUT" : "POST";
+    const body = editing ? { ...form, id: editing.id, price: priceNum } : { ...form, price: priceNum };
+
+    await fetch("/api/admin/products", {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -68,7 +96,7 @@ export default function ProductsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this product? This cannot be undone.")) return;
-    await fetch("/api/products", {
+    await fetch("/api/admin/products", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
@@ -77,7 +105,7 @@ export default function ProductsPage() {
   }
 
   async function handleToggleActive(product: Product) {
-    await fetch("/api/products", {
+    await fetch("/api/admin/products", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: product.id, active: !product.active }),
@@ -95,7 +123,7 @@ export default function ProductsPage() {
           <p className="text-text-muted text-sm mt-1">{products.length} total products • {products.filter(p => p.active).length} active</p>
         </div>
         <button
-          onClick={() => { setEditing(null); setForm(emptyProduct); setShowForm(true); }}
+          onClick={() => { setEditing(null); setForm({ ...emptyProduct, sku: crypto.randomUUID() }); setShowForm(true); }}
           className="bg-gold hover:bg-gold/90 text-navy font-semibold px-5 py-2.5 rounded-lg transition-colors text-sm"
         >
           + Add Product
@@ -148,6 +176,10 @@ export default function ProductsPage() {
               {editing ? "Edit Product" : "Add Product"}
             </h3>
             <div className="space-y-4">
+              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                <span className="text-xs font-medium text-text-muted">SKU</span>
+                <code className="text-xs text-navy font-mono">{form.sku}</code>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-navy mb-1">Name</label>
                 <input
@@ -160,14 +192,31 @@ export default function ProductsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-navy mb-1">Price ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
-                  />
+                  <label className="block text-sm font-medium text-navy mb-1">Price</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={form.price}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Allow empty, digits, one decimal point, max 2 decimal places
+                        if (val === "" || /^\d+\.?\d{0,2}$/.test(val)) {
+                          setForm({ ...form, price: val });
+                        }
+                      }}
+                      onBlur={() => {
+                        // Format to 2 decimal places on blur if there's a value
+                        const num = parseFloat(form.price);
+                        if (!isNaN(num) && num > 0) {
+                          setForm({ ...form, price: num.toFixed(2) });
+                        }
+                      }}
+                      className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
+                      placeholder="25.00"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-navy mb-1">Category</label>
@@ -201,6 +250,29 @@ export default function ProductsPage() {
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
                   placeholder="e.g. Bestseller, New, Popular"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-navy mb-1">Product Image</label>
+                {form.image && (
+                  <div className="mb-2 relative inline-block">
+                    <img src={form.image} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-gray-200" />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, image: "" })}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                  className="w-full text-sm text-text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-navy/5 file:text-navy hover:file:bg-navy/10 file:cursor-pointer file:transition-colors"
+                />
+                {uploading && <p className="text-xs text-text-muted mt-1">Uploading...</p>}
               </div>
             </div>
             <div className="flex gap-3 mt-6">
@@ -266,7 +338,7 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button
-                      onClick={() => { setEditing(product); setForm({...product, tag: product.tag || ""}); setShowForm(true); }}
+                      onClick={() => { setEditing(product); setForm({...product, price: product.price.toString(), image: product.image || "", sku: product.sku, tag: product.tag || ""}); setShowForm(true); }}
                       className="text-sm text-navy hover:text-gold transition-colors mr-3"
                     >
                       Edit

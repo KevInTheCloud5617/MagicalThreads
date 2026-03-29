@@ -1,0 +1,86 @@
+flowchart TB
+    subgraph Internet["☁️ Internet"]
+        Customer["🛒 Customer Browser"]
+        Admin["🔐 Admin Browser"]
+        CF["Cloudflare Tunnel<br/>magicalthreadswithmeg.com<br/>admin.magicalthreadswithmeg.com"]
+    end
+
+    subgraph NextJS["Next.js App (site/ — port 53000)"]
+        direction TB
+
+        subgraph StoreFront["Storefront (public)"]
+            Home["/ Homepage"]
+            Shop["/shop Product Listing"]
+            PDP["/shop/:id Product Detail"]
+            About["/about"]
+            Contact["/contact"]
+            Custom["/custom Custom Orders"]
+            CartUI["🛒 Cart Drawer<br/>(client-side localStorage)"]
+        end
+
+        subgraph AdminPortal["Admin Portal (/admin/*)"]
+            AuthGate["AdminAuthGate<br/>cookie-based password auth"]
+            Dashboard["/admin Dashboard"]
+            Products["/admin/products<br/>CRUD + Image Upload"]
+            Inquiries["/admin/inquiries"]
+            Orders["/admin/orders"]
+            Settings["/admin/settings"]
+        end
+
+        subgraph Middleware["Middleware (proxy.ts)"]
+            MW["Route Guard<br/>Blocks non-admin routes<br/>Allows: /, /admin/*, /api/admin/*"]
+        end
+
+        subgraph PublicAPI["Public API"]
+            GetProducts["GET /api/products<br/>Active products only"]
+            GetProduct["GET /api/products/:id"]
+            Checkout["POST /api/checkout<br/>Creates Stripe session<br/>⚠️ Currently blocked by middleware"]
+        end
+
+        subgraph AdminAPI["Admin API (/api/admin/*)"]
+            AdminAuth["POST /api/admin/auth<br/>Password → cookie"]
+            AdminProducts["GET/POST/PUT/DELETE<br/>/api/admin/products"]
+            AdminUpload["POST /api/admin/upload<br/>Image → Azure Blob"]
+            AdminInquiries["/api/admin/inquiries"]
+            AdminOrders["/api/admin/orders"]
+        end
+    end
+
+    subgraph Storage["Storage"]
+        SQLite[("SQLite DB<br/>shared/data/store.db<br/>Product, Order, OrderItem,<br/>Inquiry, Setting")]
+        Azure["☁️ Azure Blob Storage<br/>magicalthreadsmedia<br/>product-images/{sku}/*.jpg"]
+    end
+
+    subgraph External["External Services"]
+        Stripe["💳 Stripe<br/>Checkout Sessions<br/>⚠️ Not yet connected"]
+    end
+
+    Customer --> CF --> MW
+    Admin --> CF --> MW
+
+    MW --> StoreFront
+    MW --> AdminPortal
+    MW --> AdminAPI
+    MW -.->|"blocked"| PublicAPI
+
+    AuthGate -->|"verify cookie"| AdminAuth
+    Dashboard --> AdminProducts
+    Dashboard --> AdminInquiries
+    Products --> AdminProducts
+    Products --> AdminUpload
+
+    Shop --> GetProducts
+    PDP --> GetProduct
+    CartUI -->|"checkout"| Checkout
+
+    AdminProducts --> SQLite
+    AdminUpload --> Azure
+    GetProducts --> SQLite
+    GetProduct --> SQLite
+    Checkout -->|"lookup prices from DB"| SQLite
+    Checkout -->|"create session"| Stripe
+
+    style MW fill:#fff3cd,stroke:#856404
+    style Checkout fill:#fff3cd,stroke:#856404
+    style Stripe fill:#f8d7da,stroke:#721c24
+    style Azure fill:#d1ecf1,stroke:#0c5460
