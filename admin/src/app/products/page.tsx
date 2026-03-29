@@ -30,7 +30,7 @@ export default function ProductsPage() {
 
   const emptyProduct = {
     name: "",
-    price: 0,
+    price: "",
     category: "crewnecks",
     description: "",
     tag: "",
@@ -54,9 +54,10 @@ export default function ProductsPage() {
   }
 
   async function handleSave() {
-    if (!form.name || !form.price) return;
+    const priceNum = parseFloat(form.price);
+    if (!form.name || !priceNum || isNaN(priceNum)) return;
     const method = editing ? "PUT" : "POST";
-    const body = editing ? { ...form, id: editing.id } : form;
+    const body = editing ? { ...form, id: editing.id, price: priceNum } : { ...form, price: priceNum };
 
     await fetch("/api/products", {
       method,
@@ -166,11 +167,23 @@ export default function ProductsPage() {
                 <div>
                   <label className="block text-sm font-medium text-navy mb-1">Price ($)</label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={form.price}
-                    onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d+\.?\d{0,2}$/.test(val)) {
+                        setForm({ ...form, price: val });
+                      }
+                    }}
+                    onBlur={() => {
+                      const num = parseFloat(form.price);
+                      if (!isNaN(num) && num > 0) {
+                        setForm({ ...form, price: num.toFixed(2) });
+                      }
+                    }}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
+                    placeholder="25.00"
                   />
                 </div>
                 <div>
@@ -313,7 +326,7 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button
-                      onClick={() => { setEditing(product); setForm({ ...product, tag: product.tag || "", image: product.image || "" }); setShowForm(true); }}
+                      onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), tag: product.tag || "", image: product.image || "" }); setShowForm(true); }}
                       className="text-sm text-navy hover:text-gold transition-colors mr-3"
                     >
                       Edit
