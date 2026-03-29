@@ -8,6 +8,7 @@ services:
       - "53001:3001"
     volumes:
       - ./shared/data:/data
+      - ./certs:/app/certs:ro
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/data/store.db
@@ -18,3 +19,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
       - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-product-images}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-}
+      - AZURE_CERT_PATH=${AZURE_CERT_PATH:-/app/certs/azure-storage.pem}
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT:-magicalthreadsmedia}

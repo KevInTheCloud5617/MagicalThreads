@@ -6,8 +6,18 @@ export async function POST(req: NextRequest) {
   try {
     const { items } = await req.json();
 
-    if (!items?.length) {
+    if (!items?.length || !Array.isArray(items)) {
       return NextResponse.json({ error: "No items" }, { status: 400 });
+    }
+
+    // Validate each item
+    for (const item of items) {
+      if (!item.id || typeof item.id !== "string") {
+        return NextResponse.json({ error: "Invalid item id" }, { status: 400 });
+      }
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) {
+        return NextResponse.json({ error: "Invalid quantity (must be 1-100)" }, { status: 400 });
+      }
     }
 
     // Look up real prices from DB — never trust client-sent prices

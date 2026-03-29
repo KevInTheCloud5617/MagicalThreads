@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminCookieName, createAdminSession } from "@/lib/admin-auth";
+import { getAdminCookieName, createAdminSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json();
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24, // 24h
+      maxAge: 60 * 60 * 24,
       path: "/",
     });
     return res;
