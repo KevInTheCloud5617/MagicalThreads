@@ -59,7 +59,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-navy">Dashboard</h1>
         <p className="text-text-muted text-sm mt-1">{firstName ? `Welcome back, ${firstName}!` : "Welcome back!"} Here&apos;s what&apos;s happening.</p>

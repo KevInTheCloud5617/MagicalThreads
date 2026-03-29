@@ -93,7 +93,7 @@ export default function ProductsPage() {
   const filtered = filter ? products.filter((p) => p.category === filter) : products;
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-navy">Products</h1>
@@ -147,8 +147,8 @@ export default function ProductsPage() {
 
       {/* Product Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4">
+          <div className="bg-white md:rounded-2xl p-6 w-full h-full md:h-auto md:max-w-lg shadow-xl overflow-y-auto">
             <h3 className="text-lg font-bold text-navy mb-4">
               {editing ? "Edit Product" : "Add Product"}
             </h3>
@@ -290,9 +290,9 @@ export default function ProductsPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Product</th>
-                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Category</th>
+                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3 hidden md:table-cell">Category</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Price</th>
-                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Tag</th>
+                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3 hidden md:table-cell">Tag</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Status</th>
                 <th className="text-right text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Actions</th>
               </tr>
@@ -304,12 +304,12 @@ export default function ProductsPage() {
                     <div className="font-medium text-navy text-sm flex items-center gap-2">{product.image && <img src={product.image} alt="" className="w-10 h-10 object-cover rounded-lg border border-gray-100 flex-shrink-0" />}{product.name}{product.isExample && <span className="inline-flex items-center bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-300">EXAMPLE</span>}</div>
                     <div className="text-xs text-text-muted mt-0.5 line-clamp-1 max-w-xs">{product.description}</div>
                   </td>
-                  <td className="px-5 py-4 text-sm text-text-muted">
+                  <td className="px-5 py-4 text-sm text-text-muted hidden md:table-cell">
                     {CATEGORIES.find((c) => c.slug === product.category)?.emoji}{" "}
                     {CATEGORIES.find((c) => c.slug === product.category)?.name}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-navy">${product.price.toFixed(2)}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 hidden md:table-cell">
                     {product.tag && (
                       <span className="bg-gold/20 text-gold text-xs font-medium px-2.5 py-1 rounded-full">{product.tag}</span>
                     )}
