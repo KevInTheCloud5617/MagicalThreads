@@ -1,21 +1,27 @@
 #!/bin/sh
 set -e
 
-# Run Prisma migrations / create DB if it doesn't exist
+# Apply schema to runtime SQL backend
 cd /app/shared
-npx prisma db push --skip-generate --accept-data-loss 2>/dev/null || true
+npx prisma db push --skip-generate --accept-data-loss
 
-# Seed if database is empty (first deploy)
-if [ ! -f /data/.seeded ]; then
-  npx prisma db seed 2>/dev/null && touch /data/.seeded || true
+# Optional one-time seed (enable by setting RUN_SEED=true)
+if [ "${RUN_SEED:-false}" = "true" ]; then
+  npx prisma db seed || true
 fi
 
 cd /app
+APP_ROLE=${APP_ROLE:-both}
 
-# Start both apps
-# Site on port 3000, Admin on port 3001
-echo "Starting site on :3000 and admin on :3001..."
-PORT=3000 node /app/site-standalone/server.js &
-PORT=3001 node /app/admin-standalone/server.js &
-
-wait
+if [ "$APP_ROLE" = "site" ]; then
+  echo "Starting site on :3000..."
+  exec env PORT=3000 node /app/site-standalone/server.js
+elif [ "$APP_ROLE" = "admin" ]; then
+  echo "Starting admin on :3001..."
+  exec env PORT=3001 node /app/admin-standalone/server.js
+else
+  echo "Starting site on :3000 and admin on :3001..."
+  PORT=3000 node /app/site-standalone/server.js &
+  PORT=3001 node /app/admin-standalone/server.js &
+  wait
+fi

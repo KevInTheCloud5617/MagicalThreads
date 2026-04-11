@@ -12,6 +12,7 @@ interface Product {
   slug: string;
   tag?: string;
   image?: string;
+  stock?: number;
   active: boolean;
 }
 
@@ -98,10 +99,20 @@ export default function ShopPage() {
                 key={product.id}
                 className="group bg-white rounded-2xl overflow-hidden border border-blue-pale hover:shadow-lg transition-all hover:-translate-y-1"
               >
-                <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 flex items-center justify-center relative">
-                  <span className="text-5xl opacity-25">
-                    {categories.find((c) => c.slug === product.category)?.emoji || "🧵"}
-                  </span>
+                <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 flex items-center justify-center relative overflow-hidden">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span className="text-5xl opacity-25">
+                      {categories.find((c) => c.slug === product.category)?.emoji || "🧵"}
+                    </span>
+                  )}
                   {product.tag && (
                     <span className="absolute top-3 right-3 bg-gold text-navy text-xs font-semibold px-3 py-1 rounded-full">
                       {product.tag}
@@ -118,6 +129,9 @@ export default function ShopPage() {
                   <p className="text-gold font-semibold mt-2">
                     ${product.price.toFixed(2)}
                   </p>
+                  {(product.stock ?? 0) <= 0 && (
+                    <p className="text-red-500 text-xs font-medium mt-1">Out of Stock</p>
+                  )}
                 </div>
               </Link>
             ))}

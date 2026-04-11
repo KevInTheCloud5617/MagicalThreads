@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminCookieName, createAdminSession } from "@/lib/admin-auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("cf-connecting-ip") || "unknown";
+
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Too many login attempts. Try again later." }, { status: 429 });
+  }
+
   const { password } = await req.json();
   if (password === process.env.ADMIN_PASSWORD) {
     const token = createAdminSession();

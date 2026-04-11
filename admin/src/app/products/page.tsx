@@ -6,6 +6,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  stock: number;
   category: string;
   description: string;
   tag?: string;
@@ -31,6 +32,7 @@ export default function ProductsPage() {
   const emptyProduct = {
     name: "",
     price: "",
+    stock: "0",
     category: "crewnecks",
     description: "",
     tag: "",
@@ -55,9 +57,11 @@ export default function ProductsPage() {
 
   async function handleSave() {
     const priceNum = parseFloat(form.price);
+    const stockNum = parseInt(form.stock, 10);
     if (!form.name || !priceNum || isNaN(priceNum)) return;
+    if (isNaN(stockNum) || stockNum < 0) { alert("Stock quantity is required and must be 0 or more"); return; }
     const method = editing ? "PUT" : "POST";
-    const body = editing ? { ...form, id: editing.id, price: priceNum } : { ...form, price: priceNum };
+    const body = editing ? { ...form, id: editing.id, price: priceNum, stock: stockNum } : { ...form, price: priceNum, stock: stockNum };
 
     await fetch("/api/products", {
       method,
@@ -163,7 +167,7 @@ export default function ProductsPage() {
                   placeholder="Product name"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-navy mb-1">Price ($)</label>
                   <input
@@ -184,6 +188,18 @@ export default function ProductsPage() {
                     }}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
                     placeholder="25.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-navy mb-1">Stock *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
+                    placeholder="0"
                   />
                 </div>
                 <div>
@@ -292,6 +308,7 @@ export default function ProductsPage() {
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Product</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3 hidden md:table-cell">Category</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Price</th>
+                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3 hidden md:table-cell">Stock</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3 hidden md:table-cell">Tag</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Status</th>
                 <th className="text-right text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Actions</th>
@@ -310,6 +327,9 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-navy">${product.price.toFixed(2)}</td>
                   <td className="px-5 py-4 hidden md:table-cell">
+                    <span className={`text-sm font-medium ${product.stock === 0 ? "text-red-500" : product.stock <= 3 ? "text-amber-600" : "text-navy"}`}>{product.stock ?? 0}</span>
+                  </td>
+                  <td className="px-5 py-4 hidden md:table-cell">
                     {product.tag && (
                       <span className="bg-gold/20 text-gold text-xs font-medium px-2.5 py-1 rounded-full">{product.tag}</span>
                     )}
@@ -326,7 +346,7 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button
-                      onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), tag: product.tag || "", image: product.image || "" }); setShowForm(true); }}
+                      onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "" }); setShowForm(true); }}
                       className="text-sm text-navy hover:text-gold transition-colors mr-3"
                     >
                       Edit

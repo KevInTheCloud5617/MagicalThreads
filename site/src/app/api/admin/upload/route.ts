@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BlobServiceClient } from "@azure/storage-blob";
 import { randomUUID } from "crypto";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-
-const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING!;
-const containerName = process.env.AZURE_STORAGE_CONTAINER || "product-images";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 const MAGIC_BYTES: Record<string, number[]> = {
   "image/jpeg": [0xFF, 0xD8, 0xFF],
@@ -33,6 +31,58 @@ function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
   return true;
 }
 
+function isAzureConfigured(): boolean {
+  return !!(process.env.AZURE_STORAGE_ACCOUNT || process.env.AZURE_STORAGE_CONNECTION_STRING);
+}
+
+async function uploadToAzure(buffer: Buffer, blobName: string, contentType: string): Promise<string> {
+  // Dynamic import so Azure deps aren't required for local dev
+  const { BlobServiceClient } = await import("@azure/storage-blob");
+  const { ClientSecretCredential, DefaultAzureCredential } = await import("@azure/identity");
+
+  const containerName = process.env.AZURE_STORAGE_CONTAINER || "product-images";
+  const account = process.env.AZURE_STORAGE_ACCOUNT;
+
+  let blobService: InstanceType<typeof BlobServiceClient>;
+  if (account) {
+    const credential = process.env.AZURE_TENANT_ID && process.env.AZURE_CLIENT_ID && process.env.AZURE_CLIENT_SECRET
+      ? new ClientSecretCredential(
+          process.env.AZURE_TENANT_ID,
+          process.env.AZURE_CLIENT_ID,
+          process.env.AZURE_CLIENT_SECRET
+        )
+      : new DefaultAzureCredential({
+          managedIdentityClientId: process.env.AZURE_MANAGED_IDENTITY_CLIENT_ID || undefined,
+        });
+    blobService = new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential);
+  } else {
+    blobService = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING!);
+  }
+
+  const container = blobService.getContainerClient(containerName);
+  const blockBlob = container.getBlockBlobClient(blobName);
+
+  await blockBlob.upload(buffer, buffer.length, {
+    blobHTTPHeaders: { blobContentType: contentType },
+  });
+
+  const imageHost = process.env.IMAGE_HOST || `${account}.blob.core.windows.net`;
+  const url = blockBlob.url.replace(
+    `${account}.blob.core.windows.net`,
+    imageHost
+  );
+
+  return url;
+}
+
+async function uploadLocally(buffer: Buffer, blobName: string): Promise<string> {
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const filePath = path.join(uploadDir, blobName);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, buffer);
+  return `/uploads/${blobName}`;
+}
+
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,40 +101,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No SKU provided" }, { status: 400 });
     }
 
-    // Validate file type
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!allowed.includes(file.type)) {
       return NextResponse.json({ error: "Invalid file type. Use JPEG, PNG, WebP, or GIF." }, { status: 400 });
     }
 
-    // Max 5MB
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json({ error: "File too large. Max 5MB." }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Validate magic bytes
     if (!validateMagicBytes(buffer, file.type)) {
       return NextResponse.json({ error: "File content does not match declared type" }, { status: 400 });
     }
 
-    // Derive extension from MIME type, not filename
     const ext = MIME_TO_EXT[file.type] || "jpg";
-
-    // Sanitize SKU for blob path
     const safeSku = (sku || "unknown").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 50);
     const blobName = `${safeSku}/${randomUUID()}.${ext}`;
 
-    const blobService = BlobServiceClient.fromConnectionString(connectionString);
-    const container = blobService.getContainerClient(containerName);
-    const blockBlob = container.getBlockBlobClient(blobName);
-
-    await blockBlob.upload(buffer, buffer.length, {
-      blobHTTPHeaders: { blobContentType: file.type },
-    });
-
-    const url = blockBlob.url;
+    let url: string;
+    if (isAzureConfigured()) {
+      url = await uploadToAzure(buffer, blobName, file.type);
+    } else {
+      url = await uploadLocally(buffer, blobName);
+      console.log("Azure not configured — saved image locally:", url);
+    }
 
     return NextResponse.json({ url });
   } catch (err: unknown) {

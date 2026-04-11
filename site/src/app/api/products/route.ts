@@ -6,5 +6,6 @@ export async function GET() {
     where: { active: true },
     orderBy: { createdAt: "desc" },
   });
+
   return NextResponse.json(products);
 }

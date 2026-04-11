@@ -1,6 +1,7 @@
 import { getProductBySlug, getProducts, categories } from "@/data/products";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AddToCartButton from "@/components/AddToCartButton";
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,8 +21,17 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-2xl flex items-center justify-center relative">
-            <span className="text-8xl opacity-25">{categoryInfo?.emoji || "🧵"}</span>
+          <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-2xl flex items-center justify-center relative overflow-hidden">
+            {product.image ? (
+              <img
+                src={product.image}
+                alt={product.name}
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="text-8xl opacity-25">{categoryInfo?.emoji || "🧵"}</span>
+            )}
             {product.tag && (
               <span className="absolute top-4 right-4 bg-gold text-navy text-sm font-semibold px-4 py-1.5 rounded-full">{product.tag}</span>
             )}
@@ -36,9 +46,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <p className="text-text-muted leading-relaxed mb-8">{product.description}</p>
 
             <div className="space-y-3">
-              <button className="w-full bg-navy hover:bg-navy-light text-white font-semibold py-3.5 rounded-full transition-colors text-sm uppercase tracking-wider">
-                Add to Cart — Coming Soon
-              </button>
+              <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: (product as any).stock ?? 0, category: product.category, image: product.image ?? undefined }} />
               <Link href="/custom" className="block w-full text-center border-2 border-gold text-gold hover:bg-gold hover:text-navy font-medium py-3.5 rounded-full transition-all text-sm uppercase tracking-wider">
                 Request Custom Version
               </Link>
@@ -57,8 +65,18 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {related.map((p) => (
               <Link href={`/shop/${p.slug}`} key={p.id} className="group bg-white rounded-2xl overflow-hidden border border-blue-pale hover:shadow-lg transition-all">
-                <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 flex items-center justify-center">
-                  <span className="text-4xl opacity-25">{categories.find(c => c.slug === p.category)?.emoji || "🧵"}</span>
+                <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 flex items-center justify-center overflow-hidden">
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span className="text-4xl opacity-25">{categories.find(c => c.slug === p.category)?.emoji || "🧵"}</span>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-[family-name:var(--font-display)] font-semibold text-navy text-sm group-hover:text-gold transition-colors">{p.name}</h3>

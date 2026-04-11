@@ -16,6 +16,26 @@ function cleanSessions() {
 
 export async function isAdminAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
+
+  // Trust Cloudflare Access if present — validate JWT structure and expiry
+  const cfJwt = cookieStore.get("CF_Authorization")?.value;
+  if (cfJwt) {
+    try {
+      const parts = cfJwt.split(".");
+      if (parts.length !== 3) return false;
+      const payload = JSON.parse(
+        Buffer.from(parts[1], "base64").toString("utf-8")
+      );
+      // Verify it has expected Cloudflare Access fields and isn't expired
+      if (!payload.iss || !payload.sub || !payload.exp) return false;
+      if (payload.exp * 1000 < Date.now()) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Fallback to internal session
   const token = cookieStore.get(ADMIN_COOKIE)?.value;
   if (!token) return false;
   cleanSessions();

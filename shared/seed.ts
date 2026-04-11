@@ -1,25 +1,20 @@
 import { PrismaClient } from "@prisma/client";
-import path from "path";
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: { url: `file:${path.resolve(__dirname, "data", "store.db")}` },
-  },
-});
+const prisma = new PrismaClient();
 
 const products = [
-  { name: "Book Lover Crewneck", slug: "book-lover-crewneck", price: 45, category: "crewnecks", description: "A cozy embroidered crewneck for the bookworm in your life. Features delicate book and floral stitching.", tag: "Bestseller" },
-  { name: '"Once Upon a Time" Crewneck', slug: "once-upon-a-time-crew", price: 48, category: "crewnecks", description: "Fairytale-inspired embroidered sweatshirt with castle and star detailing.", tag: "New" },
-  { name: "Wildflower Crewneck", slug: "wildflower-crewneck", price: 45, category: "crewnecks", description: "Delicate wildflower embroidery wrapping around the neckline. Available in multiple colors." },
-  { name: "Custom Iced Coffee Cup", slug: "custom-iced-coffee-cup", price: 22, category: "cups", description: "Personalized vinyl glass cup perfect for your daily iced coffee. Add any name or design.", tag: "Popular" },
-  { name: "Disney Inspired Glass Cup", slug: "disney-glass-cup", price: 24, category: "cups", description: "Glass tumbler with your favorite Disney character silhouette in vinyl." },
-  { name: '"Mama" Glass Cup', slug: "mama-glass-cup", price: 22, category: "cups", description: "The perfect gift for mom — personalized glass cup with floral accents." },
-  { name: "Fairytale Tote Bag", slug: "fairytale-tote", price: 30, category: "totes", description: "Sturdy canvas tote with fairytale-themed embroidery. Perfect for books, groceries, or adventures.", tag: "Popular" },
-  { name: "Book Club Tote", slug: "book-club-tote", price: 28, category: "totes", description: 'Embroidered tote with "Just One More Chapter" and stack of books design.' },
-  { name: "Custom Name Tote", slug: "custom-name-tote", price: 32, category: "totes", description: "Personalized tote bag with embroidered name and your choice of design elements." },
-  { name: "Bookish Decal Set", slug: "laptop-decal-set", price: 12, category: "vinyl", description: "Set of 5 vinyl decals with book-themed designs. Waterproof and durable." },
-  { name: "Custom Car Decal", slug: "car-decal-custom", price: 15, category: "vinyl", description: "Weather-resistant vinyl decal customized with your text or design.", tag: "New" },
-  { name: "Floral Sticker Pack", slug: "sticker-pack-floral", price: 8, category: "vinyl", description: "Pack of 10 waterproof floral stickers. Perfect for water bottles, laptops, and journals." },
+  { name: "Book Lover Crewneck", sku: "CREW-BOOK-001", slug: "book-lover-crewneck", price: 45, category: "crewnecks", description: "A cozy embroidered crewneck for the bookworm in your life. Features delicate book and floral stitching.", tag: "Bestseller", image: "/uploads/seed/book-lover-crewneck.svg" },
+  { name: '"Once Upon a Time" Crewneck', sku: "CREW-OUAT-001", slug: "once-upon-a-time-crew", price: 48, category: "crewnecks", description: "Fairytale-inspired embroidered sweatshirt with castle and star detailing.", tag: "New", image: "/uploads/seed/once-upon-a-time-crew.svg" },
+  { name: "Wildflower Crewneck", sku: "CREW-WILD-001", slug: "wildflower-crewneck", price: 45, category: "crewnecks", description: "Delicate wildflower embroidery wrapping around the neckline. Available in multiple colors.", image: "/uploads/seed/wildflower-crewneck.svg" },
+  { name: "Custom Iced Coffee Cup", sku: "CUP-ICED-001", slug: "custom-iced-coffee-cup", price: 22, category: "cups", description: "Personalized vinyl glass cup perfect for your daily iced coffee. Add any name or design.", tag: "Popular", image: "/uploads/seed/custom-iced-coffee-cup.svg" },
+  { name: "Disney Inspired Glass Cup", sku: "CUP-DISN-001", slug: "disney-glass-cup", price: 24, category: "cups", description: "Glass tumbler with your favorite Disney character silhouette in vinyl.", image: "/uploads/seed/disney-glass-cup.svg" },
+  { name: '"Mama" Glass Cup', sku: "CUP-MAMA-001", slug: "mama-glass-cup", price: 22, category: "cups", description: "The perfect gift for mom — personalized glass cup with floral accents.", image: "/uploads/seed/mama-glass-cup.svg" },
+  { name: "Fairytale Tote Bag", sku: "TOTE-FAIR-001", slug: "fairytale-tote", price: 30, category: "totes", description: "Sturdy canvas tote with fairytale-themed embroidery. Perfect for books, groceries, or adventures.", tag: "Popular", image: "/uploads/seed/fairytale-tote.svg" },
+  { name: "Book Club Tote", sku: "TOTE-BOOK-001", slug: "book-club-tote", price: 28, category: "totes", description: 'Embroidered tote with "Just One More Chapter" and stack of books design.', image: "/uploads/seed/book-club-tote.svg" },
+  { name: "Custom Name Tote", sku: "TOTE-NAME-001", slug: "custom-name-tote", price: 32, category: "totes", description: "Personalized tote bag with embroidered name and your choice of design elements.", image: "/uploads/seed/custom-name-tote.svg" },
+  { name: "Bookish Decal Set", sku: "VIN-DECAL-001", slug: "laptop-decal-set", price: 12, category: "vinyl", description: "Set of 5 vinyl decals with book-themed designs. Waterproof and durable.", image: "/uploads/seed/laptop-decal-set.svg" },
+  { name: "Custom Car Decal", sku: "VIN-CAR-001", slug: "car-decal-custom", price: 15, category: "vinyl", description: "Weather-resistant vinyl decal customized with your text or design.", tag: "New", image: "/uploads/seed/car-decal-custom.svg" },
+  { name: "Floral Sticker Pack", sku: "VIN-FLOR-001", slug: "sticker-pack-floral", price: 8, category: "vinyl", description: "Pack of 10 waterproof floral stickers. Perfect for water bottles, laptops, and journals.", image: "/uploads/seed/sticker-pack-floral.svg" },
 ];
 
 const inquiries = [
@@ -35,7 +30,7 @@ async function main() {
   await prisma.product.deleteMany();
 
   for (const p of products) {
-    await prisma.product.create({ data: p });
+    await prisma.product.create({ data: { ...p, stock: 10 } });
   }
   console.log(`Seeded ${products.length} products`);
 

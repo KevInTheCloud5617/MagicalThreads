@@ -25,24 +25,94 @@ export default function Dashboard() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  async function loadDashboard() {
+    setLoading(true);
+
+    const authRes = await fetch("/api/auth/me", { cache: "no-store" });
+    if (authRes.status === 401) {
+      setNeedsLogin(true);
+      setLoading(false);
+      return;
+    }
+
+    const auth = await authRes.json();
+    const [prodsRes, inqsRes] = await Promise.all([
+      fetch("/api/products", { cache: "no-store" }),
+      fetch("/api/inquiries", { cache: "no-store" }),
+    ]);
+
+    const prodsData = await prodsRes.json();
+    const inqsData = await inqsRes.json();
+
+    setProducts(Array.isArray(prodsData) ? prodsData : []);
+    setInquiries(Array.isArray(inqsData) ? inqsData : []);
+    setFirstName(auth?.firstName ?? null);
+    setNeedsLogin(false);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/products").then((r) => r.json()),
-      fetch("/api/inquiries").then((r) => r.json()),
-      fetch("/api/auth/me").then((r) => r.json()),
-    ]).then(([prods, inqs, auth]) => {
-      setProducts(prods);
-      setInquiries(inqs);
-      setFirstName(auth.firstName);
-      setLoading(false);
-    });
+    loadDashboard();
   }, []);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoginError(null);
+
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+
+    if (!res.ok) {
+      setLoginError("Invalid password");
+      return;
+    }
+
+    setPassword("");
+    await loadDashboard();
+  }
 
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
         <p className="text-text-muted">Loading...</p>
+      </div>
+    );
+  }
+
+  if (needsLogin) {
+    return (
+      <div className="p-4 md:p-8 min-h-screen flex items-center justify-center">
+        <div className="w-full max-w-md bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h1 className="text-2xl font-bold text-navy mb-2">Admin Sign In</h1>
+          <p className="text-sm text-text-muted mb-6">Enter your admin password to continue.</p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-navy mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                required
+              />
+            </div>
+            {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+            <button
+              type="submit"
+              className="w-full bg-navy hover:bg-navy-light text-white font-medium px-4 py-2.5 rounded-lg"
+            >
+              Sign in
+            </button>
+          </form>
+        </div>
       </div>
     );
   }

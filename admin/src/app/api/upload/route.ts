@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BlobServiceClient } from "@azure/storage-blob";
+import { ClientSecretCredential, DefaultAzureCredential } from "@azure/identity";
 import { randomUUID } from "crypto";
 import { isAdminAuthenticated } from "@/lib/auth";
 
@@ -33,22 +34,22 @@ function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
 }
 
 function getBlobServiceClient(): BlobServiceClient {
-  if (process.env.AZURE_TENANT_ID) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ClientCertificateCredential } = require("@azure/identity");
-    const credential = new ClientCertificateCredential(
-      process.env.AZURE_TENANT_ID!,
-      process.env.AZURE_CLIENT_ID!,
-      process.env.AZURE_CERT_PATH!
-    );
-    return new BlobServiceClient(
-      `https://${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net`,
-      credential
-    );
+  const account = process.env.AZURE_STORAGE_ACCOUNT;
+  if (account) {
+    const credential = process.env.AZURE_TENANT_ID && process.env.AZURE_CLIENT_ID && process.env.AZURE_CLIENT_SECRET
+      ? new ClientSecretCredential(
+          process.env.AZURE_TENANT_ID,
+          process.env.AZURE_CLIENT_ID,
+          process.env.AZURE_CLIENT_SECRET
+        )
+      : new DefaultAzureCredential({
+          managedIdentityClientId: process.env.AZURE_MANAGED_IDENTITY_CLIENT_ID || undefined,
+        });
+
+    return new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential);
   }
-  return BlobServiceClient.fromConnectionString(
-    process.env.AZURE_STORAGE_CONNECTION_STRING!
-  );
+
+  return BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING!);
 }
 
 export async function POST(req: NextRequest) {
@@ -100,7 +101,12 @@ export async function POST(req: NextRequest) {
       blobHTTPHeaders: { blobContentType: file.type },
     });
 
-    return NextResponse.json({ url: blockBlob.url });
+    const imageHost = process.env.IMAGE_HOST || `${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net`;
+    const url = blockBlob.url.replace(
+      `${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net`,
+      imageHost
+    );
+    return NextResponse.json({ url });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Upload failed";
     console.error("Upload error:", message);

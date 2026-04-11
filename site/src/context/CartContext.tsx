@@ -2,6 +2,9 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
+export const MAX_CART_ITEMS = 5;
+export const BULK_ORDER_MESSAGE = "For orders of more than 5 items, please email us at meg@magicalthreadswithmeg.com for bulk pricing!";
+
 export interface CartItem {
   id: string;
   name: string;
@@ -44,6 +47,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback((item: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
+      const currentTotal = prev.reduce((sum, i) => sum + i.quantity, 0);
+      if (currentTotal >= MAX_CART_ITEMS) {
+        alert(BULK_ORDER_MESSAGE);
+        return prev;
+      }
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
         return prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
@@ -61,7 +69,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (quantity <= 0) {
       setItems((prev) => prev.filter((i) => i.id !== id));
     } else {
-      setItems((prev) => prev.map((i) => i.id === id ? { ...i, quantity } : i));
+      setItems((prev) => {
+        const currentTotal = prev.reduce((sum, i) => sum + i.quantity, 0);
+        const existing = prev.find((i) => i.id === id);
+        const diff = quantity - (existing?.quantity || 0);
+        if (diff > 0 && currentTotal + diff > MAX_CART_ITEMS) {
+          alert(BULK_ORDER_MESSAGE);
+          return prev;
+        }
+        return prev.map((i) => i.id === id ? { ...i, quantity } : i);
+      });
     }
   }, []);
 

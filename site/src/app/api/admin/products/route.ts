@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import prisma from "@/lib/db";
 import { sanitize } from "@/lib/sanitize";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
   if (data.description && data.description.length > 5000) {
     return NextResponse.json({ error: "Description too long" }, { status: 400 });
   }
+  const stock = typeof data.stock === "string" ? Number.parseInt(data.stock, 10) : data.stock;
+  if (!Number.isInteger(stock) || stock < 0) {
+    return NextResponse.json({ error: "Stock quantity is required and must be a non-negative integer" }, { status: 400 });
+  }
   if (data.category && (typeof data.category !== "string" || data.category.length > 100)) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   }
@@ -50,7 +55,7 @@ export async function POST(request: Request) {
 
   const product = await prisma.product.create({
     data: {
-      sku: data.sku,
+      sku: data.sku || `MT-${randomUUID().slice(0, 8).toUpperCase()}`,
       name,
       slug,
       price: data.price,
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
       tag,
       image: data.image || null,
       active: data.active ?? true,
+      stock,
     },
   });
 
@@ -87,6 +93,11 @@ export async function PUT(request: Request) {
   if (updateData.price !== undefined) {
     if (typeof updateData.price !== "number" || updateData.price < 0 || updateData.price > 99999) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+    }
+  }
+  if (updateData.stock !== undefined) {
+    if (!Number.isInteger(updateData.stock) || updateData.stock < 0) {
+      return NextResponse.json({ error: "Stock quantity must be a non-negative integer" }, { status: 400 });
     }
   }
   if (updateData.description !== undefined && updateData.description !== null) {
