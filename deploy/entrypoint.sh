@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# Clear Next.js route cache on startup to prevent stale pages after deploy
+rm -rf /app/site-standalone/.next/cache/fetch-cache /app/site-standalone/.next/cache/full-route 2>/dev/null || true
+
 # Apply schema to runtime SQL backend
 cd /app/shared
 npx prisma db push --skip-generate --accept-data-loss

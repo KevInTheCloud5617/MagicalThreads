@@ -1,5 +1,8 @@
 **/node_modules
 **/.next
+.next
+site/.next
+admin/.next
 **/.env
 **/.env.local
 .git

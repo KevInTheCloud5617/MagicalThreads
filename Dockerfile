@@ -22,8 +22,8 @@ ENV NEXT_PUBLIC_SITE_URL=https://magicalthreadswithmeg.com
 ENV NEXT_PUBLIC_INSTAGRAM_HANDLE=magicalthreadswithmeg
 ENV NEXT_PUBLIC_CONTACT_EMAIL=meg@magicalthreadswithmeg.com
 
-# Build both
-RUN cd site && npm run build
+# Build both - cache bust with unique timestamp
+RUN echo "build-bust-20260411-1425" && cd site && npm run build
 RUN cd admin && npm run build
 
 # ---- Production ----
