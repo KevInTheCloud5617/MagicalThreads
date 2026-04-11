@@ -4,9 +4,9 @@ set -e
 # Clear Next.js route cache on startup to prevent stale pages after deploy
 rm -rf /app/site-standalone/.next/cache/fetch-cache /app/site-standalone/.next/cache/full-route 2>/dev/null || true
 
-# Apply schema to runtime SQL backend
+# Apply schema to runtime SQL backend (non-fatal - may fail if DB is locked or already up to date)
 cd /app/shared
-npx prisma db push --skip-generate --accept-data-loss
+npx prisma db push --skip-generate --accept-data-loss 2>&1 || echo "Warning: prisma db push failed (may be locked or already applied), continuing..."
 
 # Optional one-time seed (enable by setting RUN_SEED=true)
 if [ "${RUN_SEED:-false}" = "true" ]; then
