@@ -22,7 +22,7 @@ export default function ProductImageGallery({
     const all = [
       primaryImage ? { url: primaryImage, alt: `${productName} main photo` } : null,
       ...(additionalImages ?? []).map((img, i) => ({ url: img.url, alt: img.alt || `${productName} photo ${i + 2}` })),
-    ].filter((img): img is { url: string; alt?: string } => Boolean(img?.url));
+    ].filter((img) => Boolean(img?.url)) as Array<{ url: string; alt?: string }>;
 
     const seen = new Set<string>();
     return all.filter((img) => {
