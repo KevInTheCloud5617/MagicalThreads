@@ -33,6 +33,25 @@ az acr build -r <acrName> -t magicalthreads:latest .
 az deployment group create -g magical-threads -f deploy/main.bicep -p imageTag=latest
 ```
 
+### 4a. (Recommended) Provide Stripe secrets for Key Vault
+The template now creates a Key Vault (`mt-secrets-vault`) and can write Stripe secrets into it during deployment.
+
+```bash
+az deployment group create \
+  -g magical-threads \
+  -f deploy/main.bicep \
+  -p imageTag=latest \
+  -p stripeSecretKey='<sk_live_or_test>' \
+  -p stripeWebhookSecret='<whsec_...>' \
+  -p stripePublishableKey='<pk_live_or_test>'
+```
+
+Notes:
+- Stripe params are marked `@secure()`.
+- If a Stripe value is omitted, that Key Vault secret is not created/updated.
+- Both container apps use system-assigned identities and receive the **Key Vault Secrets User** role on the vault.
+- App env vars (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) are wired via Key Vault-backed Container App secrets.
+
 ### 5. Get your URLs
 Check the deployment outputs, or:
 ```bash

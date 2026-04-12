@@ -17,10 +17,23 @@ param imageTag string = ''
 @secure()
 param databaseUrl string = ''
 
+@description('Stripe secret key (stored in Key Vault when provided)')
+@secure()
+param stripeSecretKey string = ''
+
+@description('Stripe webhook secret (stored in Key Vault when provided)')
+@secure()
+param stripeWebhookSecret string = ''
+
+@description('Stripe publishable key (stored in Key Vault when provided)')
+@secure()
+param stripePublishableKey string = ''
+
 // ============================================================
 // Container Registry
 // ============================================================
 var acrName = 'mtacr${uniqueString(resourceGroup().id)}'
+var keyVaultRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
@@ -100,6 +113,46 @@ resource envStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
 }
 
 // ============================================================
+// Key Vault + Stripe Secrets
+// ============================================================
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: 'mt-secrets-vault'
+  location: location
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+  }
+}
+
+resource stripeSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(stripeSecretKey)) {
+  parent: keyVault
+  name: 'stripe-secret-key'
+  properties: {
+    value: stripeSecretKey
+  }
+}
+
+resource stripeWebhookSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(stripeWebhookSecret)) {
+  parent: keyVault
+  name: 'stripe-webhook-secret'
+  properties: {
+    value: stripeWebhookSecret
+  }
+}
+
+resource stripePublishableKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(stripePublishableKey)) {
+  parent: keyVault
+  name: 'stripe-publishable-key'
+  properties: {
+    value: stripePublishableKey
+  }
+}
+
+// ============================================================
 // Container Apps (only deployed when imageTag is provided)
 // ============================================================
 var fullImage = '${acr.properties.loginServer}/magicalthreads:${imageTag}'
@@ -108,6 +161,9 @@ var acrCreds = acr.listCredentials()
 resource siteApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '') {
   name: 'mt-site'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: env.id
     configuration: {
@@ -128,6 +184,21 @@ resource siteApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '') 
           name: 'acr-password'
           value: acrCreds.passwords[0].value
         }
+        {
+          name: 'stripe-secret-key'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/stripe-secret-key'
+          identity: 'system'
+        }
+        {
+          name: 'stripe-webhook-secret'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/stripe-webhook-secret'
+          identity: 'system'
+        }
+        {
+          name: 'stripe-publishable-key'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/stripe-publishable-key'
+          identity: 'system'
+        }
       ]
     }
     template: {
@@ -142,6 +213,9 @@ resource siteApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '') 
           env: [
             { name: 'DATABASE_URL', value: databaseUrl }
             { name: 'PORT', value: '3000' }
+            { name: 'STRIPE_SECRET_KEY', secretRef: 'stripe-secret-key' }
+            { name: 'STRIPE_WEBHOOK_SECRET', secretRef: 'stripe-webhook-secret' }
+            { name: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', secretRef: 'stripe-publishable-key' }
           ]
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }
@@ -166,6 +240,9 @@ resource siteApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '') 
 resource adminApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '') {
   name: 'mt-admin'
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: env.id
     configuration: {
@@ -186,6 +263,21 @@ resource adminApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '')
           name: 'acr-password'
           value: acrCreds.passwords[0].value
         }
+        {
+          name: 'stripe-secret-key'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/stripe-secret-key'
+          identity: 'system'
+        }
+        {
+          name: 'stripe-webhook-secret'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/stripe-webhook-secret'
+          identity: 'system'
+        }
+        {
+          name: 'stripe-publishable-key'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/stripe-publishable-key'
+          identity: 'system'
+        }
       ]
     }
     template: {
@@ -200,6 +292,9 @@ resource adminApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '')
           command: ['sh', '-c', 'PORT=3001 node /app/admin-standalone/server.js']
           env: [
             { name: 'DATABASE_URL', value: databaseUrl }
+            { name: 'STRIPE_SECRET_KEY', secretRef: 'stripe-secret-key' }
+            { name: 'STRIPE_WEBHOOK_SECRET', secretRef: 'stripe-webhook-secret' }
+            { name: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', secretRef: 'stripe-publishable-key' }
           ]
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }
@@ -218,6 +313,27 @@ resource adminApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '')
         maxReplicas: 1
       }
     }
+  }
+}
+
+// Grant each Container App identity read access to Key Vault secrets
+resource siteKeyVaultSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (imageTag != '') {
+  name: guid(keyVault.id, siteApp.name, keyVaultRoleDefinitionId)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultRoleDefinitionId
+    principalId: siteApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource adminKeyVaultSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (imageTag != '') {
+  name: guid(keyVault.id, adminApp.name, keyVaultRoleDefinitionId)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultRoleDefinitionId
+    principalId: adminApp.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
