@@ -1,6 +1,7 @@
 # ---- Build ----
 FROM node:22-alpine AS build
 WORKDIR /app
+RUN apk add --no-cache libc6-compat
 
 COPY shared/ ./shared/
 COPY site/ ./site/
@@ -31,6 +32,7 @@ RUN cd admin && npm run build
 # ---- Production ----
 FROM node:22-alpine AS production
 WORKDIR /app
+RUN apk add --no-cache libc6-compat
 
 COPY --from=build /app/shared ./shared
 

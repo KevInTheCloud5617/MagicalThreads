@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type GalleryImage = {
   url: string;
@@ -33,11 +34,17 @@ export default function ProductImageGallery({
   }, [primaryImage, additionalImages, productName]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const selected = gallery[selectedIndex] ?? null;
 
   return (
     <div>
-      <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-2xl flex items-center justify-center relative overflow-hidden border border-gold/20">
+      <button
+        type="button"
+        onClick={() => selected && setLightboxIndex(selectedIndex)}
+        className="aspect-square w-full bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-2xl flex items-center justify-center relative overflow-hidden border border-gold/20"
+        aria-label="Open image in lightbox"
+      >
         {selected ? (
           <img
             src={selected.url}
@@ -48,7 +55,7 @@ export default function ProductImageGallery({
         ) : (
           <span className="text-8xl opacity-25">{fallbackEmoji}</span>
         )}
-      </div>
+      </button>
 
       {gallery.length > 1 && (
         <div className="mt-4 grid grid-cols-5 gap-2">
@@ -56,7 +63,10 @@ export default function ProductImageGallery({
             <button
               key={`${img.url}-${idx}`}
               type="button"
-              onClick={() => setSelectedIndex(idx)}
+              onClick={() => {
+                setSelectedIndex(idx);
+                setLightboxIndex(idx);
+              }}
               className={`aspect-square rounded-lg overflow-hidden border-2 transition ${
                 idx === selectedIndex ? "border-gold shadow-sm" : "border-blue-pale hover:border-navy/40"
               }`}
@@ -66,6 +76,14 @@ export default function ProductImageGallery({
             </button>
           ))}
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          images={gallery}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
     </div>
   );
