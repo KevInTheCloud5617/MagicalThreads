@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.2.1";
+import { APP_VERSION } from "../../shared/version";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
