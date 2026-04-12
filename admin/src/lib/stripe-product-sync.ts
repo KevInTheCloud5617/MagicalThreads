@@ -23,11 +23,15 @@ export async function syncProductToStripe(productId: string): Promise<{ synced: 
 
   let stripeProductId = product.stripeProductId;
 
+  // Stripe tax code for clothing/apparel
+  const TAX_CODE = "txcd_30011000";
+
   if (stripeProductId) {
     await stripe.products.update(stripeProductId, {
       name: product.name,
       description: product.description || undefined,
       images,
+      tax_code: TAX_CODE,
       metadata: {
         productId: product.id,
         sku: product.sku,
@@ -40,6 +44,7 @@ export async function syncProductToStripe(productId: string): Promise<{ synced: 
       name: product.name,
       description: product.description || undefined,
       images,
+      tax_code: TAX_CODE,
       metadata: {
         productId: product.id,
         sku: product.sku,
