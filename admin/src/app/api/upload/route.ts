@@ -36,7 +36,7 @@ function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
 }
 
 async function optimizeImage(input: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string; ext: string }> {
-  const image = sharp(input, { animated: true, failOn: "none" });
+  const image = sharp(input, { animated: true, failOn: "none" }).rotate();
   const metadata = await image.metadata();
 
   const resized = image.resize({
