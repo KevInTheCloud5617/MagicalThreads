@@ -31,7 +31,7 @@ export default function CartDrawer() {
 
           if (item.size !== "ONE_SIZE") {
             const sizeRow = Array.isArray(product.sizes)
-              ? product.sizes.find((s) => s.size === item.size)
+              ? product.sizes.find((s: { size: string; stock: number }) => s.size === item.size)
               : null;
             return { id: item.id, size: item.size, availableStock: Math.max(0, sizeRow?.stock ?? 0) };
           }
