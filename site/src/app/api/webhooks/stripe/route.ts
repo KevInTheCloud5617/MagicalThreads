@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { saveArchivedOrder, type ArchivedOrder } from "@/lib/order-archive";
+import { notifyNewOrder } from "@/lib/notify";
 
 type ReservationMetadataItem = {
   productId: string;
@@ -80,7 +81,8 @@ async function handleSessionRelease(session: { id: string; metadata?: { [key: st
 
 function buildShippingAddress(order: {
   shippingName: string | null;
-  shippingAddress: string | null;
+  shippingLine1: string | null;
+  shippingLine2: string | null;
   shippingCity: string | null;
   shippingState: string | null;
   shippingZip: string | null;
@@ -88,7 +90,8 @@ function buildShippingAddress(order: {
 }) {
   return [
     order.shippingName,
-    order.shippingAddress,
+    order.shippingLine1,
+    order.shippingLine2,
     [order.shippingCity, order.shippingState, order.shippingZip].filter(Boolean).join(" "),
     order.shippingCountry,
   ]
@@ -142,17 +145,27 @@ export async function POST(req: NextRequest) {
             customerName: session.customer_details?.name || existing.customerName,
             customerEmail: session.customer_details?.email || existing.customerEmail,
             stripePaymentId: typeof session.payment_intent === "string" ? session.payment_intent : existing.stripePaymentId,
-            shippingName: session.customer_details?.name || null,
-            shippingAddress:
-              [session.customer_details?.address?.line1, session.customer_details?.address?.line2].filter(Boolean).join(", ") || null,
-            shippingCity: session.customer_details?.address?.city || null,
-            shippingState: session.customer_details?.address?.state || null,
-            shippingZip: session.customer_details?.address?.postal_code || null,
-            shippingCountry: session.customer_details?.address?.country || null,
             shippingCost: typeof session.shipping_cost?.amount_total === "number" ? session.shipping_cost.amount_total / 100 : null,
           },
         });
       }
+
+      const shipping = (session as any).shipping_details;
+
+      await prisma.order.update({
+        where: { stripeSessionId: session.id },
+        data: {
+          shippingName: shipping?.name,
+          shippingLine1: shipping?.address?.line1,
+          shippingLine2: shipping?.address?.line2,
+          shippingCity: shipping?.address?.city,
+          shippingState: shipping?.address?.state,
+          shippingZip: shipping?.address?.postal_code,
+          shippingCountry: shipping?.address?.country,
+          shippingPhone: session.customer_details?.phone,
+          shippingAddress: [shipping?.address?.line1, shipping?.address?.line2].filter(Boolean).join(", ") || null,
+        },
+      });
 
       const confirmedOrder = await prisma.order.findUnique({
         where: { id: existing.id },
@@ -193,6 +206,20 @@ export async function POST(req: NextRequest) {
         };
 
         await saveArchivedOrder(archiveRecord);
+
+        await notifyNewOrder({
+          id: confirmedOrder.id,
+          customerEmail: confirmedOrder.customerEmail,
+          total: confirmedOrder.total,
+          items: confirmedOrder.items.map((item) => ({
+            name: item.product?.name || `Deleted product (${item.productId ?? "unknown"})`,
+            quantity: item.quantity,
+            size: item.size ?? undefined,
+            price: item.price,
+          })),
+          shippingName: confirmedOrder.shippingName ?? undefined,
+          shippingAddress: buildShippingAddress(confirmedOrder),
+        });
       }
     }
 

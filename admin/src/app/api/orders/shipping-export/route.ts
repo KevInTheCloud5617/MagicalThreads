@@ -57,20 +57,17 @@ export async function GET() {
   ];
 
   const rows = orders.map((order) => {
-    const shippingLine1 = (order as any).shippingLine1 ?? (order as any).shippingAddress ?? "";
-    const shippingLine2 = (order as any).shippingLine2 ?? "";
-
     return [
       order.id,
-      (order as any).shippingName ?? order.customerName ?? "",
-      shippingLine1,
-      shippingLine2,
-      (order as any).shippingCity ?? "",
-      (order as any).shippingState ?? "",
-      (order as any).shippingZip ?? "",
-      (order as any).shippingCountry ?? "",
+      order.shippingName ?? order.customerName ?? "",
+      order.shippingLine1 ?? "",
+      order.shippingLine2 ?? "",
+      order.shippingCity ?? "",
+      order.shippingState ?? "",
+      order.shippingZip ?? "",
+      order.shippingCountry ?? "",
       order.customerEmail ?? "",
-      (order as any).shippingPhone ?? "",
+      order.shippingPhone ?? "",
       "",
       itemSummary(order.items),
     ];

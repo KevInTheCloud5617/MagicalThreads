@@ -40,10 +40,13 @@ model Order {
   status          String   @default("pending-payment")
   shippingName    String?
   shippingAddress String?
+  shippingLine1   String?
+  shippingLine2   String?
   shippingCity    String?
   shippingState   String?
   shippingZip     String?
   shippingCountry String?
+  shippingPhone   String?
   shippingCost    Float?
   trackingNumber  String?
   notes           String   @default("")
