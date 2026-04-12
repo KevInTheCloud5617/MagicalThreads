@@ -106,7 +106,14 @@ export default function CartDrawer() {
           ) : (
             items.map((item) => (
               <div key={item.key} className="flex gap-4 bg-white rounded-xl p-4 border border-blue-pale">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-lg flex items-center justify-center text-2xl opacity-30">🧵</div>
+                <div className="w-16 h-16 rounded-lg overflow-hidden border border-blue-pale/70 bg-gradient-to-br from-blue-pale to-blue-light/20 flex items-center justify-center">
+                  {item.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl opacity-30">🧵</span>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-navy text-sm truncate">{item.name}</h3>
                   <p className="text-gold font-semibold text-sm">${item.price.toFixed(2)}</p>

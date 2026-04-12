@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import prisma from "@/lib/db";
 import { sanitize } from "@/lib/sanitize";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { syncProductToStripe } from "@/lib/stripe-product-sync";
 
 const ALLOWED_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type AllowedSize = (typeof ALLOWED_SIZES)[number];
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     const slug = data.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = data.sku || `MT-${randomUUID().slice(0, 8).toUpperCase()}`;
 
-    const product = await prisma.product.create({
+    const createdProduct = await prisma.product.create({
       data: {
         sku,
         name,
@@ -61,7 +62,16 @@ export async function POST(request: Request) {
       include: { sizes: true },
     });
 
-    return NextResponse.json(product, { status: 201 });
+    let stripeSyncError: string | undefined;
+    try {
+      await syncProductToStripe(createdProduct.id);
+    } catch (syncError) {
+      stripeSyncError = syncError instanceof Error ? syncError.message : "Stripe sync failed";
+      console.error("Stripe sync failed after product create:", syncError);
+    }
+
+    const product = await prisma.product.findUnique({ where: { id: createdProduct.id }, include: { sizes: true } });
+    return NextResponse.json({ ...product, stripeSyncError }, { status: 201 });
   } catch (err: any) {
     console.error("Failed to create product:", err);
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
@@ -85,13 +95,22 @@ export async function PUT(request: Request) {
   const hasSize = updateData.hasSize === undefined ? undefined : Boolean(updateData.hasSize);
   delete updateData.sizes;
 
-  const product = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.product.update({ where: { id }, data: updateData });
     await Promise.all(ALLOWED_SIZES.map((size) => tx.productSize.upsert({ where: { productId_size: { productId: id, size } }, update: { stock: hasSize === false ? 0 : sizes[size] }, create: { productId: id, size, stock: hasSize === false ? 0 : sizes[size] } })));
     return tx.product.findUnique({ where: { id }, include: { sizes: true } });
   });
 
-  return NextResponse.json(product);
+  let stripeSyncError: string | undefined;
+  try {
+    await syncProductToStripe(id);
+  } catch (syncError) {
+    stripeSyncError = syncError instanceof Error ? syncError.message : "Stripe sync failed";
+    console.error("Stripe sync failed after product update:", syncError);
+  }
+
+  const product = await prisma.product.findUnique({ where: { id }, include: { sizes: true } });
+  return NextResponse.json({ ...product, stripeSyncError });
 }
 
 export async function DELETE(request: Request) {

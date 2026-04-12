@@ -17,6 +17,8 @@ model Product {
   description String
   tag         String?
   image       String?
+  stripeProductId String?
+  stripePriceId   String?
   stock       Int      @default(0)
   hasSize     Boolean  @default(false)
   active      Boolean  @default(true)

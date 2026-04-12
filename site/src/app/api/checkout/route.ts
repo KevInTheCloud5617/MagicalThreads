@@ -26,6 +26,7 @@ type ValidatedItem = {
   quantity: number;
   size: string | null;
   hasSize: boolean;
+  stripePriceId: string | null;
 };
 
 type ReservedItem = ValidatedItem;
@@ -38,6 +39,8 @@ type ReservationMetadataItem = {
 
 const FREE_SHIPPING_THRESHOLD_CENTS = 12000;
 const STANDARD_SHIPPING_CENTS = 599;
+const SHIPPING_RATE_STANDARD = process.env.STRIPE_SHIPPING_RATE_STANDARD;
+const SHIPPING_RATE_FREE = process.env.STRIPE_SHIPPING_RATE_FREE;
 
 function getShippingAmountCents(subtotalCents: number) {
   return subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : STANDARD_SHIPPING_CENTS;
@@ -45,6 +48,12 @@ function getShippingAmountCents(subtotalCents: number) {
 
 function getShippingOption(subtotalCents: number) {
   const isFreeShipping = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS;
+
+  if (SHIPPING_RATE_STANDARD && SHIPPING_RATE_FREE) {
+    return {
+      shipping_rate: isFreeShipping ? SHIPPING_RATE_FREE : SHIPPING_RATE_STANDARD,
+    };
+  }
 
   return {
     shipping_rate_data: {
@@ -105,6 +114,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
           quantity: item.quantity,
           size: item.size,
           hasSize: true,
+          stripePriceId: product.stripePriceId,
         });
         continue;
       }
@@ -120,6 +130,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
         quantity: item.quantity,
         size: null,
         hasSize: false,
+        stripePriceId: product.stripePriceId,
       });
     }
 
@@ -165,6 +176,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
           quantity: item.quantity,
           size: item.size,
           hasSize: true,
+          stripePriceId: product.stripePriceId,
         });
         continue;
       }
@@ -185,6 +197,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
         quantity: item.quantity,
         size: null,
         hasSize: false,
+        stripePriceId: product.stripePriceId,
       });
     }
 
@@ -353,20 +366,29 @@ export async function POST(req: NextRequest) {
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        line_items: reservedItems.map((item) => ({
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.name,
-              metadata: {
-                productId: item.id,
-                size: item.size || "ONE_SIZE",
+        line_items: reservedItems.map((item) => {
+          if (item.stripePriceId) {
+            return {
+              price: item.stripePriceId,
+              quantity: item.quantity,
+            };
+          }
+
+          return {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: item.name,
+                metadata: {
+                  productId: item.id,
+                  size: item.size || "ONE_SIZE",
+                },
               },
+              unit_amount: Math.round(item.price * 100),
             },
-            unit_amount: Math.round(item.price * 100),
-          },
-          quantity: item.quantity,
-        })),
+            quantity: item.quantity,
+          };
+        }),
         shipping_address_collection: {
           allowed_countries: ["US"],
         },
