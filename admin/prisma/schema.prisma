@@ -28,18 +28,6 @@ model Product {
   sizes      ProductSize[]
 }
 
-model Inquiry {
-  id        String   @id @default(cuid())
-  name      String
-  email     String
-  subject   String
-  message   String
-  status    String   @default("new")
-  notes     String   @default("")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model Order {
   id              String   @id @default(uuid())
   stripeSessionId String?  @unique
@@ -78,7 +66,6 @@ model Setting {
   key   String @id
   value String
 }
-
 
 model ProductSize {
   id        String   @id @default(cuid())

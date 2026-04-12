@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "📊" },
   { href: "/products", label: "Products", icon: "🧵" },
-  { href: "/inquiries", label: "Inquiries", icon: "💬" },
   { href: "/orders", label: "Orders", icon: "📦" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
@@ -16,9 +15,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 bg-navy min-h-screen flex-col fixed left-0 top-0">
-        {/* Brand */}
         <div className="p-6 border-b border-navy-light">
           <div className="flex items-center gap-2">
             <span className="text-xl">✨</span>
@@ -29,10 +26,9 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || 
+            const isActive = pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(item.href));
             return (
               <Link
@@ -51,7 +47,6 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* External Links */}
         <div className="p-4 border-t border-navy-light space-y-1">
           <a
             href="https://dashboard.stripe.com"
@@ -74,12 +69,11 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile bottom nav */}
       <nav
         aria-label="Mobile navigation"
         className="md:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-navy-light bg-navy/98 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(item.href));

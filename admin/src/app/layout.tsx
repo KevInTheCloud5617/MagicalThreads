@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.2.1";
 import Sidebar from "@/components/Sidebar";
 
 const inter = Inter({
@@ -29,6 +31,9 @@ export default function RootLayout({
         <main className="pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0 md:ml-64 min-h-screen">
           {children}
         </main>
+        <div className="fixed bottom-2 right-2 z-50 pointer-events-none text-[11px] opacity-35 text-navy/80 select-none">
+          v{APP_VERSION}
+        </div>
       </body>
     </html>
   );

@@ -17,16 +17,9 @@ const products = [
   { name: "Floral Sticker Pack", sku: "VIN-FLOR-001", slug: "sticker-pack-floral", price: 8, category: "vinyl", description: "Pack of 10 waterproof floral stickers. Perfect for water bottles, laptops, and journals.", image: "/uploads/seed/sticker-pack-floral.svg" },
 ];
 
-const inquiries = [
-  { name: "Sarah Johnson", email: "sarah@example.com", subject: "Custom Order Request", message: "Hi Meg! I'd love a custom crewneck with my dog's name embroidered on it. His name is Biscuit and I'd love it in a sage green color with wildflowers around the name. Size medium please!", status: "new" },
-  { name: "Emily Chen", email: "emily.chen@example.com", subject: "Custom Order Request", message: "I'm looking for 6 matching tote bags for my bridesmaids! Each with their name and a floral design. Wedding is May 15th. Is that enough time?", status: "replied", notes: "Quoted $180 for set of 6. Waiting for confirmation." },
-  { name: "Mike Torres", email: "mike.t@example.com", subject: "General Inquiry", message: "Do you ship internationally? I'm in Canada and want to order a couple glass cups for my wife.", status: "new" },
-];
-
 async function main() {
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
-  await prisma.inquiry.deleteMany();
   await prisma.product.deleteMany();
 
   for (const p of products) {
@@ -35,11 +28,6 @@ async function main() {
     await prisma.product.create({ data: { ...p, stock: 10, hasSize: isClothing } });
   }
   console.log(`Seeded ${products.length} products`);
-
-  for (const i of inquiries) {
-    await prisma.inquiry.create({ data: i });
-  }
-  console.log(`Seeded ${inquiries.length} inquiries`);
 
   const bookLover = await prisma.product.findUnique({ where: { slug: "book-lover-crewneck" } });
   const fairytaleTote = await prisma.product.findUnique({ where: { slug: "fairytale-tote" } });

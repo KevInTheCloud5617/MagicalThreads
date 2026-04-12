@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.2.1";
+
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
@@ -33,6 +35,9 @@ export default function RootLayout({
           </div>
         )}
         {children}
+        <div className="fixed bottom-2 right-2 z-50 pointer-events-none text-[11px] opacity-35 text-navy/80 select-none">
+          v{APP_VERSION}
+        </div>
       </body>
     </html>
   );
