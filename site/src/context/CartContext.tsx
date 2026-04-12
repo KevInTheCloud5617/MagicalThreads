@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => { setItems([]); localStorage.removeItem("mt_cart"); }, []);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
