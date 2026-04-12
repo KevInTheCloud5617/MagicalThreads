@@ -125,7 +125,7 @@ export default function ShopPage() {
                   <p className="text-gold font-semibold mt-2">
                     ${product.price.toFixed(2)}
                   </p>
-                  {((product.sizes ?? []).reduce((sum, s) => sum + s.stock, 0) <= 0) && (
+                  {(product.hasSize ? (product.sizes ?? []).reduce((sum: number, s: { stock: number }) => sum + s.stock, 0) <= 0 : (product.stock ?? 0) <= 0) && (
                     <p className="text-red-500 text-xs font-medium mt-1">Out of Stock</p>
                   )}
                 </div>
