@@ -13,6 +13,7 @@ interface Product {
   tag?: string;
   image?: string;
   stock?: number;
+  hasSize?: boolean;
   sizes?: Array<{ size: string; stock: number }>;
   active: boolean;
 }
