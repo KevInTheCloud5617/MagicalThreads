@@ -6,6 +6,8 @@ import { useState } from "react";
 export default function CartDrawer() {
   const { items, removeItem, updateQuantity, totalItems, totalPrice, isCartOpen, setIsCartOpen, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const shipping = totalPrice >= 120 ? 0 : 5.99;
+  const checkoutTotal = totalPrice + shipping;
 
   if (!isCartOpen) return null;
 
@@ -78,11 +80,19 @@ export default function CartDrawer() {
 
         {items.length > 0 && (
           <div className="p-6 border-t border-navy/10 space-y-3">
-            <div className="flex justify-between text-navy font-semibold">
-              <span>Total</span>
+            <div className="flex justify-between text-sm text-text-muted">
+              <span>Subtotal</span>
               <span>${totalPrice.toFixed(2)}</span>
             </div>
-            <p className="text-xs text-text-muted">Orders typically ship within 3-5 business days.</p>
+            <div className="flex justify-between text-sm text-text-muted">
+              <span>Shipping</span>
+              <span>{shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}</span>
+            </div>
+            <div className="flex justify-between text-navy font-semibold">
+              <span>Total</span>
+              <span>${checkoutTotal.toFixed(2)}</span>
+            </div>
+            <p className="text-xs text-text-muted">Free shipping on orders over $120! Orders ship within 10-12 business days.</p>
             <button
               onClick={handleCheckout}
               disabled={loading}

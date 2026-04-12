@@ -61,6 +61,12 @@ export default async function CheckoutSuccess({
           </p>
         )}
 
+        <div className="bg-blue-pale/30 border border-blue-pale rounded-xl p-4 mb-8">
+          <p className="text-sm text-navy">
+            Your order ships within 10–12 business days. Keep an eye on your email for tracking info!
+          </p>
+        </div>
+
         <Link
           href="/shop"
           className="bg-navy hover:bg-navy-light text-white font-semibold px-8 py-3 rounded-full transition-colors text-sm uppercase tracking-wider inline-block"

@@ -30,6 +30,29 @@ type ValidatedItem = {
 
 type ReservedItem = ValidatedItem;
 
+const FREE_SHIPPING_THRESHOLD_CENTS = 12000;
+const STANDARD_SHIPPING_CENTS = 599;
+
+function getShippingAmountCents(subtotalCents: number) {
+  return subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : STANDARD_SHIPPING_CENTS;
+}
+
+function getShippingOption(subtotalCents: number) {
+  const isFreeShipping = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS;
+
+  return {
+    shipping_rate_data: {
+      type: "fixed_amount" as const,
+      fixed_amount: { amount: isFreeShipping ? 0 : STANDARD_SHIPPING_CENTS, currency: "usd" },
+      display_name: isFreeShipping ? "Free Shipping" : "Standard Shipping",
+      delivery_estimate: {
+        minimum: { unit: "business_day" as const, value: 10 },
+        maximum: { unit: "business_day" as const, value: 12 },
+      },
+    },
+  };
+}
+
 async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[]> {
   return prisma.$transaction(async (tx) => {
     const validated: ValidatedItem[] = [];
@@ -183,7 +206,10 @@ export async function POST(req: NextRequest) {
 
     if (stripeMode === "mock") {
       const reservation = await reserveItemsForMock(parsedItems);
-      const total = reservation.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const subtotal = reservation.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const subtotalCents = Math.round(subtotal * 100);
+      const shippingCents = getShippingAmountCents(subtotalCents);
+      const total = subtotal + shippingCents / 100;
 
       const order = await prisma.order.create({
         data: {
@@ -206,7 +232,13 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return NextResponse.json({ success: true, mock: true, orderId: order.id, message: "Mock checkout completed" });
+      return NextResponse.json({
+        success: true,
+        mock: true,
+        orderId: order.id,
+        shipping: shippingCents === 0 ? "Free Shipping" : "$5.99 Standard Shipping",
+        message: "Mock checkout completed",
+      });
     }
 
     if (stripeMode !== "test" && stripeMode !== "live") {
@@ -214,7 +246,10 @@ export async function POST(req: NextRequest) {
     }
 
     const validatedItems = await validateItems(parsedItems);
-    const total = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotalCents = Math.round(subtotal * 100);
+    const shippingCents = getShippingAmountCents(subtotalCents);
+    const total = subtotal + shippingCents / 100;
     const origin = req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
     try {
@@ -237,19 +272,7 @@ export async function POST(req: NextRequest) {
         shipping_address_collection: {
           allowed_countries: ["US"],
         },
-        shipping_options: [
-          {
-            shipping_rate_data: {
-              type: "fixed_amount",
-              fixed_amount: { amount: 599, currency: "usd" },
-              display_name: "Standard Shipping",
-              delivery_estimate: {
-                minimum: { unit: "business_day", value: 3 },
-                maximum: { unit: "business_day", value: 7 },
-              },
-            },
-          },
-        ],
+        shipping_options: [getShippingOption(subtotalCents)],
         success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/shop`,
       });

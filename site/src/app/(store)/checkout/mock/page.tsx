@@ -9,7 +9,9 @@ export default function MockCheckoutPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
+  const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
+  const shipping = subtotal >= 120 ? 0 : 5.99;
+  const total = subtotal + shipping;
 
   const handleCompletePurchase = async () => {
     setLoading(true);
@@ -58,9 +60,25 @@ export default function MockCheckoutPage() {
           ))
         )}
 
-        <div className="border-t pt-4 flex justify-between font-semibold text-navy">
-          <span>Total</span>
-          <span>${total.toFixed(2)}</span>
+        <div className="border-t pt-4 space-y-2 text-navy">
+          <div className="flex justify-between text-sm">
+            <span>Subtotal</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Shipping</span>
+            <span>{shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}</span>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <span>Total</span>
+            <span>${total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="bg-blue-pale/30 border border-blue-pale rounded-xl p-3">
+          <p className="text-sm text-navy">
+            Your order ships within 10–12 business days. Keep an eye on your email for tracking info!
+          </p>
         </div>
 
         <button
