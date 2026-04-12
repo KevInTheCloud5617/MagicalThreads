@@ -8,6 +8,17 @@ import { syncProductToStripe } from "@/lib/stripe-product-sync";
 const ALLOWED_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type AllowedSize = (typeof ALLOWED_SIZES)[number];
 
+type AdditionalImageInput = {
+  url: string;
+  alt?: string;
+  sortOrder?: number;
+};
+
+const PRODUCT_INCLUDE = {
+  sizes: true,
+  images: { orderBy: { sortOrder: "asc" as const } },
+} as const;
+
 function normalizeSizes(input: unknown): Record<AllowedSize, number> {
   const map = Object.fromEntries(ALLOWED_SIZES.map((size) => [size, 0])) as Record<AllowedSize, number>;
   if (!input || typeof input !== "object") return map;
@@ -19,9 +30,27 @@ function normalizeSizes(input: unknown): Record<AllowedSize, number> {
   return map;
 }
 
+function normalizeAdditionalImages(input: unknown): Array<{ url: string; alt: string | null; sortOrder: number }> {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((img, index) => {
+      if (!img || typeof img !== "object") return null;
+      const maybe = img as AdditionalImageInput;
+      const url = typeof maybe.url === "string" ? maybe.url.trim() : "";
+      if (!url) return null;
+      const sortOrder = Number.isInteger(maybe.sortOrder) ? Number(maybe.sortOrder) : index;
+      const alt = typeof maybe.alt === "string" && maybe.alt.trim() ? sanitize(maybe.alt.trim()) : null;
+      return { url, alt, sortOrder: sortOrder >= 0 ? sortOrder : index };
+    })
+    .filter((img): img is { url: string; alt: string | null; sortOrder: number } => Boolean(img))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((img, index) => ({ ...img, sortOrder: index }));
+}
+
 export async function GET() {
   if (!(await isAdminAuthenticated())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const products = await prisma.product.findMany({ include: { sizes: true }, orderBy: { createdAt: "desc" } });
+  const products = await prisma.product.findMany({ include: PRODUCT_INCLUDE, orderBy: { createdAt: "desc" } });
   return NextResponse.json(products);
 }
 
@@ -40,6 +69,7 @@ export async function POST(request: Request) {
     if (isNaN(price) || price < 0 || price > 99999) return NextResponse.json({ error: "Invalid price" }, { status: 400 });
 
     const sizes = normalizeSizes(data.sizes);
+    const additionalImages = normalizeAdditionalImages(data.additionalImages);
     const name = sanitize(data.name);
     const slug = data.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = data.sku || `MT-${randomUUID().slice(0, 8).toUpperCase()}`;
@@ -58,8 +88,11 @@ export async function POST(request: Request) {
         stock,
         hasSize: Boolean(data.hasSize),
         sizes: { create: ALLOWED_SIZES.map((size) => ({ size, stock: Boolean(data.hasSize) ? sizes[size] : 0 })) },
+        images: additionalImages.length
+          ? { create: additionalImages.map((img) => ({ url: img.url, alt: img.alt, sortOrder: img.sortOrder })) }
+          : undefined,
       },
-      include: { sizes: true },
+      include: PRODUCT_INCLUDE,
     });
 
     let stripeSyncError: string | undefined;
@@ -70,9 +103,9 @@ export async function POST(request: Request) {
       console.error("Stripe sync failed after product create:", syncError);
     }
 
-    const product = await prisma.product.findUnique({ where: { id: createdProduct.id }, include: { sizes: true } });
+    const product = await prisma.product.findUnique({ where: { id: createdProduct.id }, include: PRODUCT_INCLUDE });
     return NextResponse.json({ ...product, stripeSyncError }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Failed to create product:", err);
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
   }
@@ -93,12 +126,30 @@ export async function PUT(request: Request) {
 
   const sizes = normalizeSizes(updateData.sizes);
   const hasSize = updateData.hasSize === undefined ? undefined : Boolean(updateData.hasSize);
+  const additionalImages = normalizeAdditionalImages(updateData.additionalImages);
   delete updateData.sizes;
+  delete updateData.additionalImages;
 
   await prisma.$transaction(async (tx) => {
     await tx.product.update({ where: { id }, data: updateData });
-    await Promise.all(ALLOWED_SIZES.map((size) => tx.productSize.upsert({ where: { productId_size: { productId: id, size } }, update: { stock: hasSize === false ? 0 : sizes[size] }, create: { productId: id, size, stock: hasSize === false ? 0 : sizes[size] } })));
-    return tx.product.findUnique({ where: { id }, include: { sizes: true } });
+    await Promise.all(
+      ALLOWED_SIZES.map((size) =>
+        tx.productSize.upsert({
+          where: { productId_size: { productId: id, size } },
+          update: { stock: hasSize === false ? 0 : sizes[size] },
+          create: { productId: id, size, stock: hasSize === false ? 0 : sizes[size] },
+        }),
+      ),
+    );
+
+    await tx.productImage.deleteMany({ where: { productId: id } });
+    if (additionalImages.length) {
+      await tx.productImage.createMany({
+        data: additionalImages.map((img) => ({ productId: id, url: img.url, alt: img.alt, sortOrder: img.sortOrder })),
+      });
+    }
+
+    return tx.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
   });
 
   let stripeSyncError: string | undefined;
@@ -109,7 +160,7 @@ export async function PUT(request: Request) {
     console.error("Stripe sync failed after product update:", syncError);
   }
 
-  const product = await prisma.product.findUnique({ where: { id }, include: { sizes: true } });
+  const product = await prisma.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
   return NextResponse.json({ ...product, stripeSyncError });
 }
 
@@ -118,6 +169,7 @@ export async function DELETE(request: Request) {
   const { id } = await request.json();
   if (!id || typeof id !== "string") return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await prisma.$transaction(async (tx) => {
+    await tx.productImage.deleteMany({ where: { productId: id } });
     await tx.productSize.deleteMany({ where: { productId: id } });
     await tx.orderItem.deleteMany({ where: { productId: id } });
     await tx.product.delete({ where: { id } });

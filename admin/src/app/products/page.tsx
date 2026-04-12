@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 const SIZE_OPTIONS = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type SizeKey = (typeof SIZE_OPTIONS)[number];
 type SizesMap = Record<SizeKey, string>;
+type AdditionalImage = { url: string; alt?: string; sortOrder: number };
 
 interface Product {
   id: string;
@@ -15,6 +16,7 @@ interface Product {
   description: string;
   tag?: string;
   image?: string;
+  images?: Array<{ id?: string; url: string; alt?: string | null; sortOrder: number }>;
   active: boolean;
   hasSize: boolean;
   sizes?: Array<{ size: string; stock: number }>;
@@ -36,8 +38,9 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
 
-  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", active: true, hasSize: false, sizes: emptySizes() };
+  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes() };
   const [uploading, setUploading] = useState(false);
+  const [uploadingAdditional, setUploadingAdditional] = useState(false);
   const [form, setForm] = useState(emptyProduct);
 
   useEffect(() => { fetchProducts(); }, []);
@@ -47,6 +50,11 @@ export default function ProductsPage() {
     for (const size of sizes ?? []) if (SIZE_OPTIONS.includes(size.size as SizeKey)) mapped[size.size as SizeKey] = String(size.stock ?? 0);
     return mapped;
   };
+
+  const normalizeAdditionalImages = (images: AdditionalImage[]) => images
+    .filter((img) => img.url?.trim())
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((img, index) => ({ ...img, sortOrder: index }));
 
   async function fetchProducts() {
     const res = await fetch("/api/products");
@@ -62,8 +70,11 @@ export default function ProductsPage() {
     if (isNaN(stockNum) || stockNum < 0) { alert("Stock quantity is required and must be 0 or more"); return; }
 
     const sizesPayload = Object.fromEntries(SIZE_OPTIONS.map((s) => [s, form.hasSize ? Math.max(0, parseInt(form.sizes[s], 10) || 0) : 0]));
+    const additionalImages = normalizeAdditionalImages(form.additionalImages);
     const method = editing ? "PUT" : "POST";
-    const body = editing ? { ...form, id: editing.id, price: priceNum, stock: stockNum, sizes: sizesPayload } : { ...form, price: priceNum, stock: stockNum, sizes: sizesPayload };
+    const body = editing
+      ? { ...form, id: editing.id, price: priceNum, stock: stockNum, sizes: sizesPayload, additionalImages }
+      : { ...form, price: priceNum, stock: stockNum, sizes: sizesPayload, additionalImages };
 
     await fetch("/api/products", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -83,10 +94,30 @@ export default function ProductsPage() {
     await fetch("/api/products", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: product.id, active: !product.active, sizes: Object.fromEntries(SIZE_OPTIONS.map((s) => [s, Number(product.sizes?.find((x) => x.size === s)?.stock ?? 0)])) }),
+      body: JSON.stringify({ id: product.id, active: !product.active, additionalImages: (product.images ?? []).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), sizes: Object.fromEntries(SIZE_OPTIONS.map((s) => [s, Number(product.sizes?.find((x) => x.size === s)?.stock ?? 0)])) }),
     });
     fetchProducts();
   }
+
+  async function uploadPhoto(file: File): Promise<string | null> {
+    const sku = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product";
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("sku", sku);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const json = await res.json();
+    if (json.url) return json.url;
+    alert(json.error || "Upload failed");
+    return null;
+  }
+
+  const moveAdditionalImage = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= form.additionalImages.length) return;
+    const next = [...form.additionalImages];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    setForm((prev) => ({ ...prev, additionalImages: next.map((img, idx) => ({ ...img, sortOrder: idx })) }));
+  };
 
   const filtered = filter ? products.filter((p) => p.category === filter) : products;
 
@@ -104,20 +135,36 @@ export default function ProductsPage() {
         {form.hasSize && <div className="border rounded-lg p-3"><p className="text-sm font-semibold mb-2">Size stock</p><div className="grid grid-cols-3 gap-3">{SIZE_OPTIONS.map((s) => <div key={s}><label className="block text-xs mb-1">{s}</label><input type="number" min={0} step={1} value={form.sizes[s]} onChange={(e) => setForm({ ...form, sizes: { ...form.sizes, [s]: e.target.value } })} className="w-full px-2 py-2 rounded-lg border text-sm" /></div>)}</div></div>}
 
         <div>
-          <label className="block text-sm font-medium mb-1">Photo</label>
+          <label className="block text-sm font-medium mb-1">Primary Photo (Hero)</label>
           {form.image ? (
             <div className="flex items-center gap-3">
-              <img src={form.image} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, image: "" })}
-                className="text-sm text-red hover:text-red/70"
-              >
-                Remove
-              </button>
+              <img src={form.image} alt="Primary preview" className="w-20 h-20 object-cover rounded-lg border" />
+              <button type="button" onClick={() => setForm({ ...form, image: "" })} className="text-sm text-red hover:text-red/70">Remove</button>
             </div>
           ) : (
             <label className={`flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed border-gray-200 text-sm cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                  const url = await uploadPhoto(file);
+                  if (url) setForm((prev) => ({ ...prev, image: url }));
+                } catch {
+                  alert("Upload failed");
+                } finally {
+                  setUploading(false);
+                }
+              }} />
+              {uploading ? "⏳ Uploading..." : "📷 Upload Hero Photo"}
+            </label>
+          )}
+        </div>
+
+        <div className="border rounded-lg p-3">
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium">Additional Photos</label>
+            <label className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md border text-xs cursor-pointer ${uploadingAdditional ? "opacity-50 pointer-events-none" : "hover:bg-gray-50"}`}>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
@@ -125,25 +172,58 @@ export default function ProductsPage() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  setUploading(true);
+                  setUploadingAdditional(true);
                   try {
-                    const sku = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product";
-                    const fd = new FormData();
-                    fd.append("file", file);
-                    fd.append("sku", sku);
-                    const res = await fetch("/api/upload", { method: "POST", body: fd });
-                    const json = await res.json();
-                    if (json.url) setForm((prev) => ({ ...prev, image: json.url }));
-                    else alert(json.error || "Upload failed");
+                    const url = await uploadPhoto(file);
+                    if (url) {
+                      setForm((prev) => ({
+                        ...prev,
+                        additionalImages: [...prev.additionalImages, { url, sortOrder: prev.additionalImages.length }],
+                      }));
+                    }
                   } catch {
                     alert("Upload failed");
                   } finally {
-                    setUploading(false);
+                    setUploadingAdditional(false);
                   }
                 }}
               />
-              {uploading ? "⏳ Uploading..." : "📷 Upload Photo"}
+              {uploadingAdditional ? "⏳ Uploading..." : "+ Add Photo"}
             </label>
+          </div>
+
+          {form.additionalImages.length === 0 ? (
+            <p className="text-xs text-gray-500">No additional photos yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {form.additionalImages.map((img, index) => (
+                <div key={`${img.url}-${index}`} className="flex items-center gap-3 border rounded-lg p-2">
+                  <img src={img.url} alt={img.alt || `Additional ${index + 1}`} className="w-16 h-16 object-cover rounded-md border" />
+                  <input
+                    type="text"
+                    value={img.alt || ""}
+                    placeholder="Alt text (optional)"
+                    onChange={(e) => {
+                      const next = [...form.additionalImages];
+                      next[index] = { ...next[index], alt: e.target.value };
+                      setForm((prev) => ({ ...prev, additionalImages: next }));
+                    }}
+                    className="flex-1 px-2 py-1.5 rounded border text-xs"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <button type="button" onClick={() => moveAdditionalImage(index, -1)} className="text-xs px-2 py-1 rounded border disabled:opacity-30" disabled={index === 0}>↑</button>
+                    <button type="button" onClick={() => moveAdditionalImage(index, 1)} className="text-xs px-2 py-1 rounded border disabled:opacity-30" disabled={index === form.additionalImages.length - 1}>↓</button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, additionalImages: prev.additionalImages.filter((_, i) => i !== index).map((x, idx) => ({ ...x, sortOrder: idx })) }))}
+                    className="text-xs px-2 py-1 rounded border text-red"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -152,6 +232,6 @@ export default function ProductsPage() {
       <div className="flex gap-3 mt-6"><button onClick={handleSave} className="flex-1 bg-navy text-white py-2.5 rounded-lg text-sm">{editing ? "Save Changes" : "Add Product"}</button><button onClick={() => { setShowForm(false); setEditing(null); }} className="px-5 py-2.5 rounded-lg border text-sm">Cancel</button></div>
     </div></div>}
 
-    {loading ? <div className="text-center py-12">Loading...</div> : <div className="bg-white rounded-xl border shadow-sm overflow-hidden"><table className="w-full"><thead><tr className="border-b bg-gray-50/50"><th className="text-left text-xs px-5 py-3">Product</th><th className="text-left text-xs px-5 py-3 hidden md:table-cell">Category</th><th className="text-left text-xs px-5 py-3">Price</th><th className="text-left text-xs px-5 py-3">Stock</th><th className="text-left text-xs px-5 py-3">Status</th><th className="text-right text-xs px-5 py-3">Actions</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id} className="border-b"><td className="px-5 py-4"><div className="font-medium text-sm">{product.name}</div></td><td className="px-5 py-4 text-sm hidden md:table-cell">{product.category}</td><td className="px-5 py-4 text-sm font-semibold">${product.price.toFixed(2)}</td><td className="px-5 py-4 text-xs">{product.hasSize ? SIZE_OPTIONS.map((s) => `${s}:${product.sizes?.find((x) => x.size === s)?.stock ?? 0}`).join(" • ") : `Qty: ${product.stock}`}</td><td className="px-5 py-4"><button onClick={() => handleToggleActive(product)} className={`text-xs px-2.5 py-1 rounded-full ${product.active ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}>{product.active ? "Active" : "Hidden"}</button></td><td className="px-5 py-4 text-right"><button onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes) }); setShowForm(true); }} className="text-sm text-navy mr-3">Edit</button><button onClick={() => handleDelete(product.id)} className="text-sm text-red">Delete</button></td></tr>)}</tbody></table></div>}
+    {loading ? <div className="text-center py-12">Loading...</div> : <div className="bg-white rounded-xl border shadow-sm overflow-hidden"><table className="w-full"><thead><tr className="border-b bg-gray-50/50"><th className="text-left text-xs px-5 py-3">Product</th><th className="text-left text-xs px-5 py-3 hidden md:table-cell">Category</th><th className="text-left text-xs px-5 py-3">Price</th><th className="text-left text-xs px-5 py-3">Stock</th><th className="text-left text-xs px-5 py-3">Status</th><th className="text-right text-xs px-5 py-3">Actions</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id} className="border-b"><td className="px-5 py-4"><div className="font-medium text-sm">{product.name}</div></td><td className="px-5 py-4 text-sm hidden md:table-cell">{product.category}</td><td className="px-5 py-4 text-sm font-semibold">${product.price.toFixed(2)}</td><td className="px-5 py-4 text-xs">{product.hasSize ? SIZE_OPTIONS.map((s) => `${s}:${product.sizes?.find((x) => x.size === s)?.stock ?? 0}`).join(" • ") : `Qty: ${product.stock}`}</td><td className="px-5 py-4"><button onClick={() => handleToggleActive(product)} className={`text-xs px-2.5 py-1 rounded-full ${product.active ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}>{product.active ? "Active" : "Hidden"}</button></td><td className="px-5 py-4 text-right"><button onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes) }); setShowForm(true); }} className="text-sm text-navy mr-3">Edit</button><button onClick={() => handleDelete(product.id)} className="text-sm text-red">Delete</button></td></tr>)}</tbody></table></div>}
   </div>;
 }

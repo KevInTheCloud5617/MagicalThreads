@@ -1,12 +1,22 @@
 import prisma from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 
-function normalizeImageUrl(image?: string | null): string[] | undefined {
-  if (!image || typeof image !== "string") return undefined;
+function normalizeOneImageUrl(image?: string | null): string | null {
+  if (!image || typeof image !== "string") return null;
   const trimmed = image.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return [trimmed];
-  return [`https://${trimmed.replace(/^\/+/, "")}`];
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, "")}`;
+}
+
+function buildStripeImageList(primary?: string | null, extras?: Array<{ url: string }>): string[] | undefined {
+  const urls = [
+    normalizeOneImageUrl(primary),
+    ...(extras ?? []).map((img) => normalizeOneImageUrl(img.url)),
+  ].filter((url): url is string => Boolean(url));
+
+  const deduped = Array.from(new Set(urls)).slice(0, 8);
+  return deduped.length ? deduped : undefined;
 }
 
 export async function syncProductToStripe(productId: string): Promise<{ synced: boolean; reason?: string; product?: Awaited<ReturnType<typeof prisma.product.update>> }> {
@@ -15,15 +25,17 @@ export async function syncProductToStripe(productId: string): Promise<{ synced: 
     return { synced: false, reason: "Stripe not configured" };
   }
 
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
   if (!product) throw new Error("Product not found");
 
   const stripe = getStripe();
-  const images = normalizeImageUrl(product.image);
+  const images = buildStripeImageList(product.image, product.images);
 
   let stripeProductId = product.stripeProductId;
 
-  // Stripe tax code for clothing/apparel
   const TAX_CODE = "txcd_30011000";
 
   if (stripeProductId) {

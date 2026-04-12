@@ -2,16 +2,31 @@ import { getProductBySlug, getProducts, categories } from "@/data/products";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AddToCartButton from "@/components/AddToCartButton";
+import ProductImageGallery from "@/components/ProductImageGallery";
+
+type ProductView = {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  category: string;
+  description: string;
+  image?: string | null;
+  stock?: number | null;
+  hasSize?: boolean | null;
+  sizes?: Array<{ size: string; stock: number }>;
+  images?: Array<{ url: string; alt?: string | null; sortOrder: number }>;
+};
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product = await getProductBySlug(id);
+  const product = (await getProductBySlug(id)) as ProductView | null;
 
   if (!product) return notFound();
 
-  const allProducts = await getProducts();
+  const allProducts = (await getProducts()) as ProductView[];
   const categoryInfo = categories.find((c) => c.slug === product.category);
-  const related = allProducts.filter((p: any) => p.category === product.category && p.id !== product.id).slice(0, 3);
+  const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
 
   return (
     <div>
@@ -21,18 +36,12 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-2xl flex items-center justify-center relative overflow-hidden">
-            {product.image ? (
-              <img
-                src={product.image}
-                alt={product.name}
-                className="h-full w-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <span className="text-8xl opacity-25">{categoryInfo?.emoji || "🧵"}</span>
-            )}
-          </div>
+          <ProductImageGallery
+            primaryImage={product.image}
+            additionalImages={(product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder)}
+            productName={product.name}
+            fallbackEmoji={categoryInfo?.emoji || "🧵"}
+          />
 
           <div className="flex flex-col justify-center">
             <div className="text-sm text-text-muted mb-2 uppercase tracking-wider">
@@ -43,10 +52,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <p className="text-text-muted leading-relaxed mb-8">{product.description}</p>
 
             <div className="space-y-3">
-              {(product as any).hasSize && <p className="text-xs text-text-muted">
-                Available sizes: {((product as any).sizes ?? []).filter((s: any) => s.stock > 0).map((s: any) => s.size).join(", ") || "None"}
+              {Boolean(product.hasSize) && <p className="text-xs text-text-muted">
+                Available sizes: {(product.sizes ?? []).filter((s) => s.stock > 0).map((s) => s.size).join(", ") || "None"}
               </p>}
-              <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: (product as any).stock ?? 0, hasSize: Boolean((product as any).hasSize), category: product.category, image: product.image ?? undefined, sizes: (product as any).sizes ?? [] }} />
+              <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: product.stock ?? 0, hasSize: Boolean(product.hasSize), category: product.category, image: product.image ?? undefined, sizes: product.sizes ?? [] }} />
             </div>
 
             <p className="text-text-muted/60 text-xs mt-4 text-center">

@@ -7,24 +7,27 @@ export const categories = [
   { slug: "vinyl", name: "Vinyl & Decals", emoji: "✂️" },
 ] as const;
 
-const withSizes = { sizes: true } as const;
+const withRelations = {
+  sizes: true,
+  images: { orderBy: { sortOrder: "asc" as const } },
+} as const;
 
 export async function getProducts() {
   return prisma.product.findMany({
     where: { active: true },
-    include: withSizes,
+    include: withRelations,
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function getProductBySlug(slug: string) {
-  return prisma.product.findUnique({ where: { slug }, include: withSizes });
+  return prisma.product.findUnique({ where: { slug }, include: withRelations });
 }
 
 export async function getProductsByCategory(category: string) {
   return prisma.product.findMany({
     where: { active: true, category },
-    include: withSizes,
+    include: withRelations,
     orderBy: { createdAt: "desc" },
   });
 }

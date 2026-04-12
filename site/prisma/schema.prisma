@@ -28,6 +28,7 @@ model Product {
 
   orderItems OrderItem[]
   sizes      ProductSize[]
+  images     ProductImage[]
 }
 
 model Order {
@@ -84,4 +85,17 @@ model ProductSize {
 
   @@unique([productId, size])
   @@index([productId])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([productId, sortOrder])
 }
