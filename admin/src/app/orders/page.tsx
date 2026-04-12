@@ -69,6 +69,27 @@ export default function OrdersPage() {
     setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, trackingNumber: tracking } : order)));
   }
 
+  async function exportForShipping() {
+    const res = await fetch("/api/orders/shipping-export");
+    if (!res.ok) {
+      alert("Failed to export shipping CSV.");
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const contentDisposition = res.headers.get("Content-Disposition") || "";
+    const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+
+    a.href = url;
+    a.download = filenameMatch?.[1] || `shipping-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
@@ -83,6 +104,12 @@ export default function OrdersPage() {
           >
             Download CSV
           </a>
+          <button
+            onClick={exportForShipping}
+            className="bg-navy hover:bg-navy-light text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            Export for Shipping
+          </button>
           <a
             href="https://dashboard.stripe.com/payments"
             target="_blank"
