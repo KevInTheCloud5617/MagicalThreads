@@ -35,11 +35,22 @@ export default function AddToCartButton({ product }: { product: { id: string; na
       alert("Please select a size");
       return;
     }
-    if (atStockLimit) {
+
+    const availableForSelection = hasSize ? selectedSizeStock : stock;
+    if (cartQty + 1 > availableForSelection) {
       alert(hasSize ? `Only ${selectedSizeStock} available for ${product.name} (${selectedSize})` : `Only ${stock} available for ${product.name}`);
       return;
     }
-    addItem({ id: product.id, size: hasSize ? selectedSize : "ONE_SIZE", name: product.name, price: product.price, category: product.category, image: product.image });
+
+    addItem({
+      id: product.id,
+      size: hasSize ? selectedSize : "ONE_SIZE",
+      name: product.name,
+      price: product.price,
+      availableStock: availableForSelection,
+      category: product.category,
+      image: product.image,
+    });
   };
 
   const label = outOfStock ? "Out of Stock" : `Add to Cart — $${product.price.toFixed(2)}`;

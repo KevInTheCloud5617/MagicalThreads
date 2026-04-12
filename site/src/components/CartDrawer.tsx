@@ -1,13 +1,58 @@
 "use client";
 
-import { useCart } from "@/context/CartContext";
-import { useState } from "react";
+import { useCart, MAX_CART_ITEMS } from "@/context/CartContext";
+import { useEffect, useMemo, useState } from "react";
 
 export default function CartDrawer() {
-  const { items, removeItem, updateQuantity, totalItems, totalPrice, isCartOpen, setIsCartOpen, clearCart } = useCart();
+  const { items, removeItem, updateQuantity, syncItemStocks, totalItems, totalPrice, isCartOpen, setIsCartOpen, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const shipping = totalPrice >= 120 ? 0 : 5.99;
   const checkoutTotal = totalPrice + shipping;
+
+  const itemSignature = useMemo(
+    () => items.map((i) => `${i.id}:${i.size}:${i.quantity}`).sort().join("|"),
+    [items]
+  );
+
+  useEffect(() => {
+    if (!isCartOpen || items.length === 0) return;
+    let cancelled = false;
+
+    const syncStock = async () => {
+      try {
+        const res = await fetch("/api/products", { cache: "no-store" });
+        if (!res.ok) return;
+        const products = await res.json();
+        if (!Array.isArray(products) || cancelled) return;
+
+        const updates = items.map((item) => {
+          const product = products.find((p: { id: string; stock?: number; sizes?: Array<{ size: string; stock: number }> }) => p.id === item.id);
+          if (!product) return null;
+
+          if (item.size !== "ONE_SIZE") {
+            const sizeRow = Array.isArray(product.sizes)
+              ? product.sizes.find((s) => s.size === item.size)
+              : null;
+            return { id: item.id, size: item.size, availableStock: Math.max(0, sizeRow?.stock ?? 0) };
+          }
+
+          return { id: item.id, size: "ONE_SIZE", availableStock: Math.max(0, product.stock ?? 0) };
+        }).filter(Boolean) as Array<{ id: string; size: string; availableStock: number }>;
+
+        if (!cancelled && updates.length > 0) {
+          syncItemStocks(updates);
+        }
+      } catch {
+        // Ignore stock sync failures; checkout validation still protects inventory.
+      }
+    };
+
+    syncStock();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCartOpen, itemSignature, items, syncItemStocks]);
 
   if (!isCartOpen) return null;
 
@@ -69,7 +114,24 @@ export default function CartDrawer() {
                   <div className="flex items-center gap-2 mt-1">
                     <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">−</button>
                     <span className="text-sm text-navy">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">+</button>
+                    {(() => {
+                      const atStockLimit = typeof item.availableStock === "number" && item.quantity >= item.availableStock;
+                      const atCartLimit = totalItems >= MAX_CART_ITEMS;
+                      const plusDisabled = atStockLimit || atCartLimit;
+                      return (
+                        <>
+                          <button
+                            onClick={() => updateQuantity(item.key, item.quantity + 1)}
+                            disabled={plusDisabled}
+                            title={atStockLimit ? "Maximum available stock reached" : atCartLimit ? "Cart limit reached" : "Increase quantity"}
+                            className={`w-6 h-6 rounded text-xs flex items-center justify-center ${plusDisabled ? "bg-navy/5 text-navy/30 cursor-not-allowed" : "bg-navy/10 text-navy hover:bg-navy/20"}`}
+                          >
+                            +
+                          </button>
+                          {atStockLimit && <span className="text-[10px] text-text-muted">(max)</span>}
+                        </>
+                      );
+                    })()}
                     <button onClick={() => removeItem(item.key)} className="ml-auto text-red-400 hover:text-red-600 text-xs">Remove</button>
                   </div>
                 </div>

@@ -12,6 +12,7 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  availableStock?: number;
   image?: string;
   category?: string;
 }
@@ -21,6 +22,7 @@ interface CartContextType {
   addItem: (item: Omit<CartItem, "quantity" | "key">) => void;
   removeItem: (key: string) => void;
   updateQuantity: (key: string, quantity: number) => void;
+  syncItemStocks: (stocks: Array<{ id: string; size: string; availableStock: number }>) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -57,9 +59,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       const existing = prev.find((i) => i.key === itemKey);
       if (existing) {
-        return prev.map((i) => i.key === itemKey ? { ...i, quantity: i.quantity + 1 } : i);
+        const maxAllowed = typeof existing.availableStock === "number" ? existing.availableStock : Number.POSITIVE_INFINITY;
+        return prev.map((i) => i.key === itemKey ? { ...i, quantity: Math.min(i.quantity + 1, maxAllowed) } : i);
       }
-      return [...prev, { ...item, key: itemKey, quantity: 1 }];
+      const initialQty = typeof item.availableStock === "number" ? Math.min(1, item.availableStock) : 1;
+      if (initialQty <= 0) return prev;
+      return [...prev, { ...item, key: itemKey, quantity: initialQty }];
     });
     setIsCartOpen(true);
   }, []);
@@ -80,9 +85,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
           alert(BULK_ORDER_MESSAGE);
           return prev;
         }
-        return prev.map((i) => i.key === key ? { ...i, quantity } : i);
+        return prev.map((i) => {
+          if (i.key !== key) return i;
+          const maxAllowed = typeof i.availableStock === "number" ? i.availableStock : Number.POSITIVE_INFINITY;
+          return { ...i, quantity: Math.min(quantity, maxAllowed) };
+        });
       });
     }
+  }, []);
+
+  const syncItemStocks = useCallback((stocks: Array<{ id: string; size: string; availableStock: number }>) => {
+    const byKey = new Map(stocks.map((s) => [`${s.id}::${s.size}`, s.availableStock]));
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        const availableStock = byKey.get(item.key);
+        if (typeof availableStock !== "number") return item;
+        const nextQuantity = Math.min(item.quantity, availableStock);
+        if (item.availableStock === availableStock && item.quantity === nextQuantity) return item;
+        changed = true;
+        return {
+          ...item,
+          availableStock,
+          quantity: nextQuantity,
+        };
+      });
+      return changed ? next : prev;
+    });
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);
@@ -91,7 +120,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice, isCartOpen, setIsCartOpen }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, syncItemStocks, clearCart, totalItems, totalPrice, isCartOpen, setIsCartOpen }}>
       {children}
     </CartContext.Provider>
   );

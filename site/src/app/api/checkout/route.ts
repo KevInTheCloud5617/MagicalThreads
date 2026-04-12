@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 
 class CheckoutBusinessError extends Error {
   status: number;
@@ -51,6 +51,19 @@ function getShippingOption(subtotalCents: number) {
       },
     },
   };
+}
+
+function resolveStripeMode() {
+  const rawMode = (process.env.STRIPE_MODE ?? process.env.NEXT_PUBLIC_STRIPE_MODE ?? "").trim().toLowerCase();
+  const key = (process.env.STRIPE_SECRET_KEY ?? "").trim();
+
+  if (rawMode === "mock" || rawMode === "test" || rawMode === "live") {
+    return rawMode;
+  }
+
+  if (rawMode) return "unsupported" as const;
+  if (!key) return "mock" as const;
+  return key.startsWith("sk_live_") ? "live" : "test";
 }
 
 async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[]> {
@@ -176,7 +189,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
 export async function POST(req: NextRequest) {
   try {
     const { items } = await req.json();
-    const stripeMode = (process.env.STRIPE_MODE || "mock").toLowerCase();
+    const stripeMode = resolveStripeMode();
 
     if (!items?.length || !Array.isArray(items)) {
       return NextResponse.json({ error: "No items", code: "NO_ITEMS" }, { status: 400 });
@@ -202,6 +215,13 @@ export async function POST(req: NextRequest) {
       if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) {
         return NextResponse.json({ error: "Invalid quantity (must be 1-100)", code: "INVALID_QUANTITY" }, { status: 400 });
       }
+    }
+
+    // Always validate stock first so users get deterministic inventory errors.
+    const validatedItems = await validateItems(parsedItems);
+
+    if (stripeMode === "unsupported") {
+      return NextResponse.json({ error: "Unsupported STRIPE_MODE. Use mock, test, or live.", code: "INVALID_STRIPE_MODE" }, { status: 400 });
     }
 
     if (stripeMode === "mock") {
@@ -241,67 +261,67 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (stripeMode !== "test" && stripeMode !== "live") {
-      return NextResponse.json({ error: `Unsupported STRIPE_MODE: ${stripeMode}` }, { status: 400 });
+    const secretKey = (process.env.STRIPE_SECRET_KEY ?? "").trim();
+    if (!secretKey) {
+      return NextResponse.json({ error: "Stripe is not configured on the server", code: "STRIPE_NOT_CONFIGURED" }, { status: 500 });
+    }
+    if (stripeMode === "live" && !secretKey.startsWith("sk_live_")) {
+      return NextResponse.json({ error: "STRIPE_MODE is live but STRIPE_SECRET_KEY is not a live key", code: "STRIPE_KEY_MODE_MISMATCH" }, { status: 500 });
     }
 
-    const validatedItems = await validateItems(parsedItems);
     const subtotal = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const subtotalCents = Math.round(subtotal * 100);
     const shippingCents = getShippingAmountCents(subtotalCents);
     const total = subtotal + shippingCents / 100;
     const origin = req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-    try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        line_items: validatedItems.map((item) => ({
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.name,
-              metadata: {
-                productId: item.id,
-                size: item.size || "ONE_SIZE",
-              },
-            },
-            unit_amount: Math.round(item.price * 100),
-          },
-          quantity: item.quantity,
-        })),
-        shipping_address_collection: {
-          allowed_countries: ["US"],
-        },
-        shipping_options: [getShippingOption(subtotalCents)],
-        success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/shop`,
-      });
-
-      await prisma.order.create({
-        data: {
-          id: randomUUID(),
-          stripeSessionId: session.id,
-          customerName: "Stripe Checkout Customer",
-          customerEmail: "pending@magicalthreads.local",
-          total,
-          status: "pending",
-          notes: "Awaiting Stripe payment",
-          items: {
-            create: validatedItems.map((item) => ({
-              id: randomUUID(),
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: validatedItems.map((item) => ({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: item.name,
+            metadata: {
               productId: item.id,
-              quantity: item.quantity,
-              price: item.price,
-              size: item.size,
-            })),
+              size: item.size || "ONE_SIZE",
+            },
           },
+          unit_amount: Math.round(item.price * 100),
         },
-      });
+        quantity: item.quantity,
+      })),
+      shipping_address_collection: {
+        allowed_countries: ["US"],
+      },
+      shipping_options: [getShippingOption(subtotalCents)],
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/shop`,
+    });
 
-      return NextResponse.json({ url: session.url, sessionId: session.id });
-    } catch (stripeErr) {
-      throw stripeErr;
-    }
+    await prisma.order.create({
+      data: {
+        id: randomUUID(),
+        stripeSessionId: session.id,
+        customerName: "Stripe Checkout Customer",
+        customerEmail: "pending@magicalthreads.local",
+        total,
+        status: "pending",
+        notes: "Awaiting Stripe payment",
+        items: {
+          create: validatedItems.map((item) => ({
+            id: randomUUID(),
+            productId: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            size: item.size,
+          })),
+        },
+      },
+    });
+
+    return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (err: unknown) {
     if (err instanceof CheckoutBusinessError) {
       return NextResponse.json({ error: err.message, code: "CHECKOUT_VALIDATION_FAILED" }, { status: err.status });
