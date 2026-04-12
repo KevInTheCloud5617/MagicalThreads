@@ -4,6 +4,14 @@ import { ClientSecretCredential, DefaultAzureCredential } from "@azure/identity"
 import { randomUUID } from "crypto";
 import { isAdminAuthenticated } from "@/lib/auth";
 
+export const config = {
+  api: { bodyParser: false },
+};
+
+// Next.js App Router: increase body size limit
+export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+
 const containerName = process.env.AZURE_STORAGE_CONTAINER || "product-images";
 
 const MAGIC_BYTES: Record<string, number[]> = {
@@ -75,8 +83,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid file type. Use JPEG, PNG, WebP, or GIF." }, { status: 400 });
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: "File too large. Max 5MB." }, { status: 400 });
+    if (file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: "File too large. Max 20MB." }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
