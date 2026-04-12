@@ -62,7 +62,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               ✨ Handcrafted with love • Made to order
             </p>
             <p className="text-text-muted/80 text-xs mt-1 text-center">
-              Orders typically ship within 3-5 business days.
+              Orders typically ship within 10–12 business days.
             </p>
           </div>
         </div>
