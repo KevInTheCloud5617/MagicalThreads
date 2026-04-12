@@ -30,6 +30,12 @@ type ValidatedItem = {
 
 type ReservedItem = ValidatedItem;
 
+type ReservationMetadataItem = {
+  productId: string;
+  quantity: number;
+  size: string;
+};
+
 const FREE_SHIPPING_THRESHOLD_CENTS = 12000;
 const STANDARD_SHIPPING_CENTS = 599;
 
@@ -186,6 +192,66 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
   });
 }
 
+async function reserveItemsForStripe(items: ValidatedItem[]): Promise<ReservedItem[]> {
+  return prisma.$transaction(async (tx) => {
+    const reserved: ReservedItem[] = [];
+
+    for (const item of items) {
+      if (item.hasSize && item.size) {
+        const updated = await tx.productSize.updateMany({
+          where: {
+            productId: item.id,
+            size: item.size,
+            stock: { gte: item.quantity },
+          },
+          data: { stock: { decrement: item.quantity } },
+        });
+
+        if (updated.count !== 1) {
+          throw new CheckoutBusinessError(`Insufficient stock for size ${item.size}`, 409);
+        }
+
+        reserved.push(item);
+        continue;
+      }
+
+      const updated = await tx.product.updateMany({
+        where: { id: item.id, stock: { gte: item.quantity } },
+        data: { stock: { decrement: item.quantity } },
+      });
+
+      if (updated.count !== 1) {
+        throw new CheckoutBusinessError(`Insufficient stock for ${item.name}`, 409);
+      }
+
+      reserved.push(item);
+    }
+
+    return reserved;
+  });
+}
+
+async function releaseReservedItems(items: ReservedItem[]) {
+  await prisma.$transaction(async (tx) => {
+    for (const item of items) {
+      if (item.hasSize && item.size) {
+        await tx.productSize.updateMany({
+          where: {
+            productId: item.id,
+            size: item.size,
+          },
+          data: { stock: { increment: item.quantity } },
+        });
+      } else {
+        await tx.product.updateMany({
+          where: { id: item.id },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { items } = await req.json();
@@ -269,59 +335,76 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "STRIPE_MODE is live but STRIPE_SECRET_KEY is not a live key", code: "STRIPE_KEY_MODE_MISMATCH" }, { status: 500 });
     }
 
-    const subtotal = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const reservedItems = await reserveItemsForStripe(validatedItems);
+
+    const subtotal = reservedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const subtotalCents = Math.round(subtotal * 100);
     const shippingCents = getShippingAmountCents(subtotalCents);
     const total = subtotal + shippingCents / 100;
     const origin = req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: validatedItems.map((item) => ({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.name,
-            metadata: {
-              productId: item.id,
-              size: item.size || "ONE_SIZE",
+    const metadataItems: ReservationMetadataItem[] = reservedItems.map((item) => ({
+      productId: item.id,
+      quantity: item.quantity,
+      size: item.size || "ONE_SIZE",
+    }));
+
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: reservedItems.map((item) => ({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: item.name,
+              metadata: {
+                productId: item.id,
+                size: item.size || "ONE_SIZE",
+              },
             },
+            unit_amount: Math.round(item.price * 100),
           },
-          unit_amount: Math.round(item.price * 100),
+          quantity: item.quantity,
+        })),
+        shipping_address_collection: {
+          allowed_countries: ["US"],
         },
-        quantity: item.quantity,
-      })),
-      shipping_address_collection: {
-        allowed_countries: ["US"],
-      },
-      shipping_options: [getShippingOption(subtotalCents)],
-      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/shop`,
-    });
-
-    await prisma.order.create({
-      data: {
-        id: randomUUID(),
-        stripeSessionId: session.id,
-        customerName: "Stripe Checkout Customer",
-        customerEmail: "pending@magicalthreads.local",
-        total,
-        status: "pending",
-        notes: "Awaiting Stripe payment",
-        items: {
-          create: validatedItems.map((item) => ({
-            id: randomUUID(),
-            productId: item.id,
-            quantity: item.quantity,
-            price: item.price,
-            size: item.size,
-          })),
+        shipping_options: [getShippingOption(subtotalCents)],
+        success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/shop`,
+        expires_at: Math.floor(Date.now() / 1000) + 1800,
+        metadata: {
+          items: JSON.stringify(metadataItems),
         },
-      },
-    });
+      });
 
-    return NextResponse.json({ url: session.url, sessionId: session.id });
+      await prisma.order.create({
+        data: {
+          id: randomUUID(),
+          stripeSessionId: session.id,
+          customerName: "Stripe Checkout Customer",
+          customerEmail: "pending@magicalthreads.local",
+          total,
+          status: "pending",
+          notes: "Awaiting Stripe payment",
+          items: {
+            create: reservedItems.map((item) => ({
+              id: randomUUID(),
+              productId: item.id,
+              quantity: item.quantity,
+              price: item.price,
+              size: item.size,
+            })),
+          },
+        },
+      });
+
+      return NextResponse.json({ url: session.url, sessionId: session.id });
+    } catch (error) {
+      await releaseReservedItems(reservedItems);
+      throw error;
+    }
   } catch (err: unknown) {
     if (err instanceof CheckoutBusinessError) {
       return NextResponse.json({ error: err.message, code: "CHECKOUT_VALIDATION_FAILED" }, { status: err.status });

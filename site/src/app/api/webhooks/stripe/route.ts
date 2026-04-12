@@ -3,6 +3,81 @@ import prisma from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { saveArchivedOrder, type ArchivedOrder } from "@/lib/order-archive";
 
+type ReservationMetadataItem = {
+  productId: string;
+  quantity: number;
+  size?: string;
+};
+
+function parseReservationItems(metadataItems: string | undefined): ReservationMetadataItem[] {
+  if (!metadataItems) return [];
+
+  try {
+    const parsed = JSON.parse(metadataItems);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((item) => {
+      if (!item || typeof item !== "object") return false;
+      const candidate = item as ReservationMetadataItem;
+      return (
+        typeof candidate.productId === "string" &&
+        candidate.productId.length > 0 &&
+        Number.isInteger(candidate.quantity) &&
+        candidate.quantity > 0
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function handleSessionRelease(session: { id: string; metadata?: { [key: string]: string } | null }, status: string) {
+  const existing = await prisma.order.findUnique({
+    where: { stripeSessionId: session.id },
+  });
+
+  if (!existing) {
+    return;
+  }
+
+  if (existing.status === "confirmed" || existing.status === status) {
+    return;
+  }
+
+  const reservationItems = parseReservationItems(session.metadata?.items);
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.order.findUnique({ where: { id: existing.id } });
+    if (!current || current.status === "confirmed" || current.status === status) {
+      return;
+    }
+
+    if (reservationItems.length) {
+      for (const item of reservationItems) {
+        if (item.size && item.size !== "ONE_SIZE") {
+          await tx.productSize.updateMany({
+            where: {
+              productId: item.productId,
+              size: item.size,
+            },
+            data: { stock: { increment: item.quantity } },
+          });
+        } else {
+          await tx.product.updateMany({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+      }
+    }
+
+    await tx.order.update({
+      where: { id: existing.id },
+      data: { status },
+    });
+  });
+}
+
 function buildShippingAddress(order: {
   shippingName: string | null;
   shippingAddress: string | null;
@@ -60,45 +135,22 @@ export async function POST(req: NextRequest) {
       }
 
       if (existing.status !== "confirmed") {
-        await prisma.$transaction(async (tx) => {
-          await tx.order.update({
-            where: { id: existing.id },
-            data: {
-              status: "confirmed",
-              customerName: session.customer_details?.name || existing.customerName,
-              customerEmail: session.customer_details?.email || existing.customerEmail,
-              stripePaymentId: typeof session.payment_intent === "string" ? session.payment_intent : existing.stripePaymentId,
-              shippingName: session.customer_details?.name || null,
-              shippingAddress:
-                [session.customer_details?.address?.line1, session.customer_details?.address?.line2].filter(Boolean).join(", ") || null,
-              shippingCity: session.customer_details?.address?.city || null,
-              shippingState: session.customer_details?.address?.state || null,
-              shippingZip: session.customer_details?.address?.postal_code || null,
-              shippingCountry: session.customer_details?.address?.country || null,
-              shippingCost: typeof session.shipping_cost?.amount_total === "number" ? session.shipping_cost.amount_total / 100 : null,
-            },
-          });
-
-          for (const item of existing.items) {
-            if (item.size && item.size !== "ONE_SIZE") {
-              await tx.productSize.updateMany({
-                where: {
-                  productId: item.productId ?? "",
-                  size: item.size,
-                  stock: { gte: item.quantity },
-                },
-                data: { stock: { decrement: item.quantity } },
-              });
-            } else if (item.productId) {
-              await tx.product.updateMany({
-                where: {
-                  id: item.productId,
-                  stock: { gte: item.quantity },
-                },
-                data: { stock: { decrement: item.quantity } },
-              });
-            }
-          }
+        await prisma.order.update({
+          where: { id: existing.id },
+          data: {
+            status: "confirmed",
+            customerName: session.customer_details?.name || existing.customerName,
+            customerEmail: session.customer_details?.email || existing.customerEmail,
+            stripePaymentId: typeof session.payment_intent === "string" ? session.payment_intent : existing.stripePaymentId,
+            shippingName: session.customer_details?.name || null,
+            shippingAddress:
+              [session.customer_details?.address?.line1, session.customer_details?.address?.line2].filter(Boolean).join(", ") || null,
+            shippingCity: session.customer_details?.address?.city || null,
+            shippingState: session.customer_details?.address?.state || null,
+            shippingZip: session.customer_details?.address?.postal_code || null,
+            shippingCountry: session.customer_details?.address?.country || null,
+            shippingCost: typeof session.shipping_cost?.amount_total === "number" ? session.shipping_cost.amount_total / 100 : null,
+          },
         });
       }
 
@@ -146,10 +198,12 @@ export async function POST(req: NextRequest) {
 
     if (event.type === "checkout.session.expired") {
       const session = event.data.object;
-      await prisma.order.updateMany({
-        where: { stripeSessionId: session.id },
-        data: { status: "cancelled" },
-      });
+      await handleSessionRelease(session, "cancelled");
+    }
+
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object;
+      await handleSessionRelease(session, "payment-failed");
     }
 
     return NextResponse.json({ received: true });
