@@ -48,6 +48,11 @@ body {
   50% { transform: translateY(-10px); }
 }
 
+@keyframes fabIn {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .animate-sparkle {
   animation: sparkle 2s ease-in-out infinite;
 }

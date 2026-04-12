@@ -13,6 +13,10 @@ param location string = resourceGroup().location
 @description('Image tag to deploy (set after first acr build)')
 param imageTag string = ''
 
+@description('DATABASE_URL for SQL Server (set from Azure Container App environment/secrets)')
+@secure()
+param databaseUrl string = ''
+
 // ============================================================
 // Container Registry
 // ============================================================
@@ -28,7 +32,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
 }
 
 // ============================================================
-// Storage Account + File Share (persistent SQLite volume)
+// Storage Account + File Share (optional persistent app volume)
 // ============================================================
 var storageAccountName = 'mtstore${uniqueString(resourceGroup().id)}'
 
@@ -136,7 +140,7 @@ resource siteApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '') 
             memory: '0.5Gi'
           }
           env: [
-            { name: 'DATABASE_URL', value: 'file:/data/store.db' }
+            { name: 'DATABASE_URL', value: databaseUrl }
             { name: 'PORT', value: '3000' }
           ]
           volumeMounts: [
@@ -195,7 +199,7 @@ resource adminApp 'Microsoft.App/containerApps@2024-03-01' = if (imageTag != '')
           }
           command: ['sh', '-c', 'PORT=3001 node /app/admin-standalone/server.js']
           env: [
-            { name: 'DATABASE_URL', value: 'file:/data/store.db' }
+            { name: 'DATABASE_URL', value: databaseUrl }
           ]
           volumeMounts: [
             { volumeName: 'data', mountPath: '/data' }

@@ -27,6 +27,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${playfair.variable} ${inter.variable} font-[family-name:var(--font-inter)] antialiased min-h-screen flex flex-col`}>
+        {(process.env.NEXT_PUBLIC_STRIPE_MODE || "mock").toLowerCase() === "mock" && (
+          <div className="bg-amber-300 text-amber-900 text-center text-sm font-semibold py-2 px-4">
+            ⚠️ TEST MODE — No real payments are processed | v3.0-stripe
+          </div>
+        )}
         {children}
       </body>
     </html>

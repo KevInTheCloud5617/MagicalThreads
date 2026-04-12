@@ -47,7 +47,7 @@ flowchart TB
     end
 
     subgraph Storage["Storage"]
-        SQLite[("SQLite DB<br/>shared/data/store.db<br/>Product, Order, OrderItem,<br/>Inquiry, Setting")]
+        Database[("SQL Server DB<br/>Azure SQL / SQL Server<br/>Product, Order, OrderItem,<br/>Inquiry, Setting")]
         Azure["☁️ Azure Blob Storage<br/>magicalthreadsmedia<br/>product-images/{sku}/*.jpg"]
     end
 
@@ -73,11 +73,11 @@ flowchart TB
     PDP --> GetProduct
     CartUI -->|"checkout"| Checkout
 
-    AdminProducts --> SQLite
+    AdminProducts --> Database
     AdminUpload --> Azure
-    GetProducts --> SQLite
-    GetProduct --> SQLite
-    Checkout -->|"lookup prices from DB"| SQLite
+    GetProducts --> Database
+    GetProduct --> Database
+    Checkout -->|"lookup prices from DB"| Database
     Checkout -->|"create session"| Stripe
 
     style MW fill:#fff3cd,stroke:#856404

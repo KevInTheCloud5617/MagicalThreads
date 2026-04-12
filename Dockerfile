@@ -16,11 +16,12 @@ RUN cd shared && npx prisma generate
 RUN cp -r shared/node_modules/.prisma site/node_modules/.prisma
 RUN cp -r shared/node_modules/.prisma admin/node_modules/.prisma
 
-ENV DATABASE_URL="file:/data/store.db"
 ENV NEXT_PUBLIC_SITE_NAME="Magical Threads with Meg"
 ENV NEXT_PUBLIC_SITE_URL=https://magicalthreadswithmeg.com
 ENV NEXT_PUBLIC_INSTAGRAM_HANDLE=magicalthreadswithmeg
 ENV NEXT_PUBLIC_CONTACT_EMAIL=meg@magicalthreadswithmeg.com
+ENV NEXT_PUBLIC_STRIPE_MODE=test
+ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51TLBvsJ4oVzt4WEZvdImB652uiNhKZ6tYjSppeC2Ke8lwVVItW8WiOiICyEQT8tovw1ZLSwVWVi6baVYfk7O72Jo00H5z0JZo2
 
 # Build both - cache bust with unique timestamp
 RUN echo "build-bust-20260411-1425" && cd site && npm run build
@@ -44,10 +45,7 @@ COPY --from=build /app/admin/.next/static ./admin-standalone/.next/static
 COPY deploy/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-VOLUME /data
-
 ENV NODE_ENV=production
-ENV DATABASE_URL="file:/data/store.db"
 
 EXPOSE 3000 3001
 

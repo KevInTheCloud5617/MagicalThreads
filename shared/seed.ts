@@ -30,7 +30,9 @@ async function main() {
   await prisma.product.deleteMany();
 
   for (const p of products) {
-    await prisma.product.create({ data: { ...p, stock: 10 } });
+    const clothingKeywords = ["crewneck", "hoodie", "shirt", "tee", "sweatshirt", "apparel"];
+    const isClothing = p.category === "crewnecks" || clothingKeywords.some((k) => p.name.toLowerCase().includes(k));
+    await prisma.product.create({ data: { ...p, stock: 10, hasSize: isClothing } });
   }
   console.log(`Seeded ${products.length} products`);
 

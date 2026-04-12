@@ -22,7 +22,7 @@ The `stock` field (integer, default 0) has been added to the Product model.
 
 **Migration required:**
 ```bash
-# Already applied to shared/data/store.db via:
+# Apply to your SQL Server database via migration or schema push:
 # ALTER TABLE Product ADD COLUMN stock INTEGER NOT NULL DEFAULT 0;
 
 # Regenerate Prisma clients after schema change:

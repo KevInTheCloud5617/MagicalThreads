@@ -100,14 +100,14 @@ export default function Dashboard() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                className="w-full min-h-11 rounded-lg border border-gray-200 px-3 py-2.5"
                 required
               />
             </div>
             {loginError && <p className="text-sm text-red-600">{loginError}</p>}
             <button
               type="submit"
-              className="w-full bg-navy hover:bg-navy-light text-white font-medium px-4 py-2.5 rounded-lg"
+              className="w-full min-h-11 bg-navy hover:bg-navy-light text-white font-medium px-4 py-2.5 rounded-lg"
             >
               Sign in
             </button>

@@ -18,12 +18,14 @@ model Product {
   tag         String?
   image       String?
   stock       Int      @default(0)
+  hasSize     Boolean  @default(false)
   active      Boolean  @default(true)
   isExample   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   orderItems OrderItem[]
+  sizes      ProductSize[]
 }
 
 model Inquiry {
@@ -39,14 +41,20 @@ model Inquiry {
 }
 
 model Order {
-  id              String   @id @default(cuid())
+  id              String   @id @default(uuid())
   stripeSessionId String?  @unique
   stripePaymentId String?
   customerName    String
   customerEmail   String
   total           Float
   status          String   @default("pending-payment")
+  shippingName    String?
   shippingAddress String?
+  shippingCity    String?
+  shippingState   String?
+  shippingZip     String?
+  shippingCountry String?
+  shippingCost    Float?
   trackingNumber  String?
   notes           String   @default("")
   items           OrderItem[]
@@ -55,17 +63,33 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
+  id        String  @id @default(uuid())
   orderId   String
-  productId String
+  productId String?
   quantity  Int     @default(1)
   price     Float
+  size      String?
 
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id])
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
 
 model Setting {
   key   String @id
   value String
+}
+
+
+model ProductSize {
+  id        String   @id @default(cuid())
+  productId String
+  size      String
+  stock     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, size])
+  @@index([productId])
 }

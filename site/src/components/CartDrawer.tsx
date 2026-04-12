@@ -10,12 +10,24 @@ export default function CartDrawer() {
   if (!isCartOpen) return null;
 
   const handleCheckout = async () => {
+    const mode = (process.env.NEXT_PUBLIC_STRIPE_MODE || "mock").toLowerCase();
+    if (mode === "mock") {
+      window.location.href = "/checkout/mock";
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity, priceId: (i as unknown as Record<string, unknown>).priceId })) }),
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            id: i.id,
+            quantity: i.quantity,
+            ...(i.size !== "ONE_SIZE" ? { size: i.size } : {}),
+          })),
+        }),
       });
       const data = await res.json();
       if (data.url) {
@@ -46,16 +58,17 @@ export default function CartDrawer() {
             <p className="text-text-muted text-center py-12">Your cart is empty</p>
           ) : (
             items.map((item) => (
-              <div key={item.id} className="flex gap-4 bg-white rounded-xl p-4 border border-blue-pale">
+              <div key={item.key} className="flex gap-4 bg-white rounded-xl p-4 border border-blue-pale">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-pale to-blue-light/20 rounded-lg flex items-center justify-center text-2xl opacity-30">🧵</div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-navy text-sm truncate">{item.name}</h3>
                   <p className="text-gold font-semibold text-sm">${item.price.toFixed(2)}</p>
+                  {item.size !== "ONE_SIZE" && <p className="text-text-muted text-xs">Size: {item.size}</p>}
                   <div className="flex items-center gap-2 mt-1">
-                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">−</button>
+                    <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">−</button>
                     <span className="text-sm text-navy">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">+</button>
-                    <button onClick={() => removeItem(item.id)} className="ml-auto text-red-400 hover:text-red-600 text-xs">Remove</button>
+                    <button onClick={() => updateQuantity(item.key, item.quantity + 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">+</button>
+                    <button onClick={() => removeItem(item.key)} className="ml-auto text-red-400 hover:text-red-600 text-xs">Remove</button>
                   </div>
                 </div>
               </div>
@@ -69,6 +82,7 @@ export default function CartDrawer() {
               <span>Total</span>
               <span>${totalPrice.toFixed(2)}</span>
             </div>
+            <p className="text-xs text-text-muted">Orders typically ship within 3-5 business days.</p>
             <button
               onClick={handleCheckout}
               disabled={loading}

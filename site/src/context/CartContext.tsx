@@ -7,6 +7,8 @@ export const BULK_ORDER_MESSAGE = "For orders of more than 5 items, please email
 
 export interface CartItem {
   id: string;
+  size: string;
+  key: string;
   name: string;
   price: number;
   quantity: number;
@@ -16,9 +18,9 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity">) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  addItem: (item: Omit<CartItem, "quantity" | "key">) => void;
+  removeItem: (key: string) => void;
+  updateQuantity: (key: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -45,39 +47,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (loaded) localStorage.setItem("mt_cart", JSON.stringify(items));
   }, [items, loaded]);
 
-  const addItem = useCallback((item: Omit<CartItem, "quantity">) => {
+  const addItem = useCallback((item: Omit<CartItem, "quantity" | "key">) => {
+    const itemKey = `${item.id}::${item.size}`;
     setItems((prev) => {
       const currentTotal = prev.reduce((sum, i) => sum + i.quantity, 0);
       if (currentTotal >= MAX_CART_ITEMS) {
         alert(BULK_ORDER_MESSAGE);
         return prev;
       }
-      const existing = prev.find((i) => i.id === item.id);
+      const existing = prev.find((i) => i.key === itemKey);
       if (existing) {
-        return prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev.map((i) => i.key === itemKey ? { ...i, quantity: i.quantity + 1 } : i);
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, key: itemKey, quantity: 1 }];
     });
     setIsCartOpen(true);
   }, []);
 
-  const removeItem = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeItem = useCallback((key: string) => {
+    setItems((prev) => prev.filter((i) => i.key !== key));
   }, []);
 
-  const updateQuantity = useCallback((id: string, quantity: number) => {
+  const updateQuantity = useCallback((key: string, quantity: number) => {
     if (quantity <= 0) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
+      setItems((prev) => prev.filter((i) => i.key !== key));
     } else {
       setItems((prev) => {
         const currentTotal = prev.reduce((sum, i) => sum + i.quantity, 0);
-        const existing = prev.find((i) => i.id === id);
+        const existing = prev.find((i) => i.key === key);
         const diff = quantity - (existing?.quantity || 0);
         if (diff > 0 && currentTotal + diff > MAX_CART_ITEMS) {
           alert(BULK_ORDER_MESSAGE);
           return prev;
         }
-        return prev.map((i) => i.id === id ? { ...i, quantity } : i);
+        return prev.map((i) => i.key === key ? { ...i, quantity } : i);
       });
     }
   }, []);

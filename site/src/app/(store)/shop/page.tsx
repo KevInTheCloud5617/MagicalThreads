@@ -13,6 +13,7 @@ interface Product {
   tag?: string;
   image?: string;
   stock?: number;
+  sizes?: Array<{ size: string; stock: number }>;
   active: boolean;
 }
 
@@ -113,11 +114,6 @@ export default function ShopPage() {
                       {categories.find((c) => c.slug === product.category)?.emoji || "🧵"}
                     </span>
                   )}
-                  {product.tag && (
-                    <span className="absolute top-3 right-3 bg-gold text-navy text-xs font-semibold px-3 py-1 rounded-full">
-                      {product.tag}
-                    </span>
-                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-[family-name:var(--font-display)] font-semibold text-navy group-hover:text-gold transition-colors">
@@ -129,7 +125,7 @@ export default function ShopPage() {
                   <p className="text-gold font-semibold mt-2">
                     ${product.price.toFixed(2)}
                   </p>
-                  {(product.stock ?? 0) <= 0 && (
+                  {((product.sizes ?? []).reduce((sum, s) => sum + s.stock, 0) <= 0) && (
                     <p className="text-red-500 text-xs font-medium mt-1">Out of Stock</p>
                   )}
                 </div>

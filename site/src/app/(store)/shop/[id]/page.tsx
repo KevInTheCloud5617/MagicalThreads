@@ -32,9 +32,6 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             ) : (
               <span className="text-8xl opacity-25">{categoryInfo?.emoji || "🧵"}</span>
             )}
-            {product.tag && (
-              <span className="absolute top-4 right-4 bg-gold text-navy text-sm font-semibold px-4 py-1.5 rounded-full">{product.tag}</span>
-            )}
           </div>
 
           <div className="flex flex-col justify-center">
@@ -46,14 +43,20 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <p className="text-text-muted leading-relaxed mb-8">{product.description}</p>
 
             <div className="space-y-3">
-              <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: (product as any).stock ?? 0, category: product.category, image: product.image ?? undefined }} />
+              {(product as any).hasSize && <p className="text-xs text-text-muted">
+                Available sizes: {((product as any).sizes ?? []).filter((s: any) => s.stock > 0).map((s: any) => s.size).join(", ") || "None"}
+              </p>}
+              <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: (product as any).stock ?? 0, hasSize: Boolean((product as any).hasSize), category: product.category, image: product.image ?? undefined, sizes: (product as any).sizes ?? [] }} />
               <Link href="/custom" className="block w-full text-center border-2 border-gold text-gold hover:bg-gold hover:text-navy font-medium py-3.5 rounded-full transition-all text-sm uppercase tracking-wider">
                 Request Custom Version
               </Link>
             </div>
 
             <p className="text-text-muted/60 text-xs mt-4 text-center">
-              ✨ Handcrafted with love • Made to order • Ships in 5–7 business days
+              ✨ Handcrafted with love • Made to order
+            </p>
+            <p className="text-text-muted/80 text-xs mt-1 text-center">
+              Orders typically ship within 3-5 business days.
             </p>
           </div>
         </div>

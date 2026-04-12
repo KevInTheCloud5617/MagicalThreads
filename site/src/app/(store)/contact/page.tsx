@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
 export default function ContactPage() {
-  const [submitted, setSubmitted] = useState(false);
-
   return (
     <div>
       {/* Header */}
@@ -57,75 +53,24 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Form */}
+          {/* Contact Email */}
           <div className="md:col-span-3">
-            {submitted ? (
-              <div className="bg-blue-pale/30 rounded-2xl p-10 text-center border border-blue-pale">
-                <span className="text-5xl block mb-4">✨</span>
-                <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy mb-3">
-                  Message Sent!
-                </h2>
-                <p className="text-text-muted">
-                  Thank you for reaching out! I&apos;ll get back to you as soon as I can.
-                </p>
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSubmitted(true);
-                }}
-                className="space-y-5"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-1.5">Name</label>
-                    <input
-                      type="text"
-                      required
-                      className="w-full px-4 py-3 rounded-xl border border-blue-pale bg-white focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold text-sm text-navy"
-                      placeholder="Your name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-1.5">Email</label>
-                    <input
-                      type="email"
-                      required
-                      className="w-full px-4 py-3 rounded-xl border border-blue-pale bg-white focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold text-sm text-navy"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy mb-1.5">Subject</label>
-                  <select
-                    className="w-full px-4 py-3 rounded-xl border border-blue-pale bg-white focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold text-sm text-navy"
-                  >
-                    <option>General Inquiry</option>
-                    <option>Custom Order Request</option>
-                    <option>Order Status</option>
-                    <option>Collaboration</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy mb-1.5">Message</label>
-                  <textarea
-                    required
-                    rows={5}
-                    className="w-full px-4 py-3 rounded-xl border border-blue-pale bg-white focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold text-sm text-navy resize-none"
-                    placeholder="Tell me what you're looking for..."
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-gold hover:bg-gold-light text-navy font-semibold py-3.5 rounded-full transition-all hover:shadow-lg text-sm uppercase tracking-wider"
+            <div className="bg-blue-pale/30 rounded-2xl p-8 sm:p-10 border border-blue-pale text-center">
+              <span className="text-5xl block mb-4">📬</span>
+              <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy mb-3">
+                Get in Touch
+              </h2>
+              <p className="text-text-muted text-base sm:text-lg leading-relaxed">
+                For inquiries, please email us at{" "}
+                <a
+                  href="mailto:hello@magicalthreadswithmeg.com"
+                  className="text-gold font-semibold hover:text-gold-light underline underline-offset-4 transition-colors"
                 >
-                  Send Message
-                </button>
-              </form>
-            )}
+                  hello@magicalthreadswithmeg.com
+                </a>
+                .
+              </p>
+            </div>
           </div>
         </div>
       </section>

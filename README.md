@@ -1,11 +1,11 @@
 # Craft Store — Next.js Storefront + Admin
 
-A lightweight e-commerce platform built for small craft businesses. Includes a customer-facing storefront and a separate admin dashboard, backed by SQLite and Stripe.
+A lightweight e-commerce platform built for small craft businesses. Includes a customer-facing storefront and a separate admin dashboard, backed by SQL Server (Azure SQL compatible) and Stripe.
 
 ## Tech Stack
 
 - **Framework:** Next.js 14 (App Router)
-- **Database:** SQLite via Prisma
+- **Database:** SQL Server via Prisma
 - **Payments:** Stripe
 - **Styling:** Tailwind CSS
 - **Monorepo:** Three packages — `site/`, `admin/`, `shared/`

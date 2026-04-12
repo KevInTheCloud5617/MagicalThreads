@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import CartButton from "./CartButton";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -67,25 +66,26 @@ export default function Navbar() {
             >
               Shop Now ✨
             </Link>
-            <CartButton />
           </div>
 
-          {/* Mobile menu button */}
-          <button
-            className="md:hidden text-white/80 hover:text-gold transition-colors p-2"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
-          >
-            <svg className="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+          {/* Mobile controls */}
+          <div className="md:hidden flex items-center gap-1">
+            <button
+              className="inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-white/80 hover:text-gold hover:bg-white/5 transition-colors"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="Toggle menu"
             >
-              {isOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+              <svg className="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}
+              >
+                {isOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 

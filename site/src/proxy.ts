@@ -69,6 +69,7 @@ export function proxy(request: NextRequest) {
 
   if (path.startsWith("/admin")) return applySecurityHeaders(NextResponse.next());
   if (path.startsWith("/api/admin")) return applySecurityHeaders(NextResponse.next());
+  if (path.startsWith("/api/webhooks/stripe")) return applySecurityHeaders(NextResponse.next());
 
   if (
     path.startsWith("/_next") ||

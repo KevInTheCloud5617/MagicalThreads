@@ -75,25 +75,30 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-navy border-t border-navy-light z-50 flex">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || 
-            (item.href !== "/" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center py-2 text-xs transition-colors ${
-                isActive
-                  ? "text-gold font-medium"
-                  : "text-blue-light/60"
-              }`}
-            >
-              <span className="text-lg mb-0.5">{item.icon}</span>
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav
+        aria-label="Mobile navigation"
+        className="md:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-navy-light bg-navy/98 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="grid grid-cols-5">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex min-h-14 touch-manipulation flex-col items-center justify-center px-1 text-[11px] leading-tight transition-colors ${
+                  isActive
+                    ? "text-gold font-medium"
+                    : "text-blue-light/70 active:text-white"
+                }`}
+              >
+                <span className="mb-0.5 text-lg leading-none" aria-hidden="true">{item.icon}</span>
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );

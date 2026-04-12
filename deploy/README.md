@@ -4,7 +4,7 @@
 Everything from scratch — no pre-existing Azure resources needed:
 
 - **Azure Container Registry** (Basic) — stores your Docker image
-- **Storage Account + File Share** — persistent SQLite volume
+- **Storage Account + File Share** — optional persistent app volume
 - **Log Analytics Workspace** — container logs
 - **Container Apps Environment** — serverless container hosting
 - **2 Container Apps** — site (port 3000) + admin (port 3001)

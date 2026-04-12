@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface OrderItem {
   id: string;
   quantity: number;
   price: number;
+  size?: string | null;
   product: { name: string };
 }
 
@@ -16,48 +16,57 @@ interface Order {
   customerEmail: string;
   total: number;
   status: string;
-  trackingNumber: string | null;
-  notes: string;
+  shippingStatus: "pending" | "shipped" | "delivered";
+  trackingNumber: string;
   items: OrderItem[];
   createdAt: string;
+  archived?: boolean;
 }
 
-const statusConfig: Record<string, { label: string; style: string }> = {
-  "pending-payment": { label: "Pending Payment", style: "bg-gold/20 text-gold" },
-  "paid": { label: "Paid", style: "bg-green/10 text-green" },
-  "in-production": { label: "In Production", style: "bg-blue-light/20 text-navy" },
-  "ready-to-ship": { label: "Ready to Ship", style: "bg-blue-pale text-navy" },
-  "shipped": { label: "Shipped", style: "bg-green/10 text-green" },
-  "delivered": { label: "Delivered", style: "bg-gray-100 text-text-muted" },
-};
-
-const pipeline = [
-  { status: "pending-payment", label: "Pending Payment", icon: "💳" },
-  { status: "paid", label: "Paid", icon: "✅" },
-  { status: "in-production", label: "In Production", icon: "🧵" },
-  { status: "ready-to-ship", label: "Ready to Ship", icon: "📫" },
-  { status: "shipped", label: "Shipped", icon: "📦" },
-  { status: "delivered", label: "Delivered", icon: "🏠" },
-];
+const SHIPPING_STATUSES: Array<Order["shippingStatus"]> = ["pending", "shipped", "delivered"];
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  async function loadOrders() {
+    const res = await fetch("/api/admin/orders");
+    const data = await res.json();
+    setOrders(data);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    fetch("/api/admin/orders")
-      .then((r) => r.json())
-      .then((data) => { setOrders(data); setLoading(false); });
+    loadOrders();
   }, []);
 
-  async function updateStatus(id: string, status: string) {
-    await fetch("/api/orders", {
+  async function updateOrder(id: string, updates: Partial<Pick<Order, "status" | "trackingNumber" | "shippingStatus">>) {
+    setSavingId(id);
+    const payload: Record<string, unknown> = { id };
+
+    if (updates.shippingStatus) {
+      payload.status = updates.shippingStatus;
+    }
+    if (updates.status) {
+      payload.status = updates.status;
+    }
+    if (updates.trackingNumber !== undefined) {
+      payload.trackingNumber = updates.trackingNumber;
+    }
+
+    await fetch("/api/admin/orders", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify(payload),
     });
-    const res = await fetch("/api/admin/orders");
-    setOrders(await res.json());
+
+    await loadOrders();
+    setSavingId(null);
+  }
+
+  function setDraftTracking(id: string, tracking: string) {
+    setOrders((prev) => prev.map((order) => (order.id === id ? { ...order, trackingNumber: tracking } : order)));
   }
 
   return (
@@ -65,55 +74,34 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-navy">Orders</h1>
-          <p className="text-text-muted text-sm mt-1">Track production and shipping</p>
+          <p className="text-text-muted text-sm mt-1">All active + archived orders</p>
         </div>
-        <a
-          href="https://dashboard.stripe.com/payments"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-navy hover:bg-navy-light text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2"
-        >
-          💳 View in Stripe ↗
-        </a>
-      </div>
-
-      {/* Order Pipeline */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-        {pipeline.map((stage) => {
-          const count = orders.filter((o) => o.status === stage.status).length;
-          return (
-            <div key={stage.status} className="bg-white rounded-xl p-4 border border-gray-100 text-center">
-              <span className="text-xl block mb-1">{stage.icon}</span>
-              <p className="text-lg font-bold text-navy">{count}</p>
-              <p className="text-xs text-text-muted">{stage.label}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Stripe Connection Banner */}
-      <div className="bg-gold/10 border border-gold/30 rounded-xl p-5 mb-6 flex items-center gap-4">
-        <span className="text-2xl">⚡</span>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-navy">Connect Stripe to see real orders</p>
-          <p className="text-xs text-text-muted mt-0.5">
-            Once connected, orders will automatically appear here when customers complete checkout.
-          </p>
+        <div className="flex items-center gap-3">
+          <a
+            href="/api/admin/orders/export"
+            className="bg-green hover:bg-green/90 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            Download CSV
+          </a>
+          <a
+            href="https://dashboard.stripe.com/payments"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-navy hover:bg-navy-light text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            View in Stripe ↗
+          </a>
         </div>
-        <Link href="/admin/settings" className="bg-gold hover:bg-gold/90 text-navy text-sm font-medium px-5 py-2.5 rounded-lg transition-colors whitespace-nowrap">
-          Connect Stripe
-        </Link>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
         <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
           <h2 className="font-bold text-navy text-sm">Orders ({orders.length})</h2>
         </div>
         {loading ? (
           <div className="p-8 text-center text-text-muted">Loading...</div>
         ) : orders.length === 0 ? (
-          <div className="p-8 text-center text-text-muted">No orders yet. They&apos;ll appear here once Stripe is connected and customers start checking out.</div>
+          <div className="p-8 text-center text-text-muted">No orders yet.</div>
         ) : (
           <table className="w-full">
             <thead>
@@ -121,7 +109,8 @@ export default function OrdersPage() {
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Customer</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Items</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Total</th>
-                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Status</th>
+                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Shipping</th>
+                <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Tracking</th>
                 <th className="text-left text-xs font-semibold text-text-muted uppercase tracking-wider px-5 py-3">Date</th>
               </tr>
             </thead>
@@ -131,25 +120,44 @@ export default function OrdersPage() {
                   <td className="px-5 py-4">
                     <div className="text-sm font-medium text-navy">{order.customerName}</div>
                     <div className="text-xs text-text-muted">{order.customerEmail}</div>
+                    {order.archived ? <div className="text-[10px] text-text-muted mt-1">Archived</div> : null}
                   </td>
-                  <td className="px-5 py-4 text-sm text-text-muted">
-                    {order.items.map((i) => `${i.product.name}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join(", ")}
+                  <td className="px-5 py-4 text-sm text-text-muted max-w-xs">
+                    {order.items.map((i) => `${i.product.name}${i.size ? ` (${i.size})` : ""}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join(", ")}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-navy">${order.total.toFixed(2)}</td>
                   <td className="px-5 py-4">
                     <select
-                      value={order.status}
-                      onChange={(e) => updateStatus(order.id, e.target.value)}
-                      className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer ${statusConfig[order.status]?.style || "bg-gray-100"}`}
+                      value={order.shippingStatus || "pending"}
+                      onChange={(e) => updateOrder(order.id, { shippingStatus: e.target.value as Order["shippingStatus"] })}
+                      className="text-xs px-2 py-1 rounded border border-gray-200"
+                      disabled={savingId === order.id}
                     >
-                      {pipeline.map((s) => (
-                        <option key={s.status} value={s.status}>{s.label}</option>
+                      {SHIPPING_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
                       ))}
                     </select>
                   </td>
-                  <td className="px-5 py-4 text-sm text-text-muted">
-                    {new Date(order.createdAt).toLocaleDateString()}
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={order.trackingNumber || ""}
+                        onChange={(e) => setDraftTracking(order.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-2 py-1 w-40"
+                        placeholder="Tracking #"
+                      />
+                      <button
+                        onClick={() => updateOrder(order.id, { trackingNumber: order.trackingNumber || "" })}
+                        className="text-xs bg-navy text-white rounded px-2 py-1"
+                        disabled={savingId === order.id}
+                      >
+                        Save
+                      </button>
+                    </div>
                   </td>
+                  <td className="px-5 py-4 text-sm text-text-muted">{new Date(order.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>

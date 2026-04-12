@@ -1,36 +1,68 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useCart, MAX_CART_ITEMS, BULK_ORDER_MESSAGE } from "@/context/CartContext";
 
-export default function AddToCartButton({ product }: { product: { id: string; name: string; price: number; stock?: number; category?: string; image?: string } }) {
+type ProductSize = { size: string; stock: number };
+
+export default function AddToCartButton({ product }: { product: { id: string; name: string; price: number; stock?: number; hasSize?: boolean; category?: string; image?: string; sizes?: ProductSize[] } }) {
   const { addItem, items } = useCart();
 
+  const hasSize = Boolean(product.hasSize);
+  const availableSizes = useMemo(
+    () => (product.sizes ?? []).filter((s) => s.stock > 0),
+    [product.sizes]
+  );
+  const [selectedSize, setSelectedSize] = useState<string>(availableSizes[0]?.size ?? "");
+
+  const selectedSizeStock = availableSizes.find((s) => s.size === selectedSize)?.stock ?? 0;
   const stock = product.stock ?? 0;
-  const cartQty = items.find((i) => i.id === product.id)?.quantity ?? 0;
+  const cartQty = items.find((i) => i.id === product.id && i.size === (hasSize ? selectedSize : "ONE_SIZE"))?.quantity ?? 0;
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const outOfStock = stock <= 0;
-  const atStockLimit = cartQty >= stock;
+
+  const outOfStock = hasSize ? availableSizes.length === 0 : stock <= 0;
+  const noSizeSelected = hasSize ? !selectedSize : false;
+  const atStockLimit = hasSize ? (selectedSize ? cartQty >= selectedSizeStock : false) : cartQty >= stock;
   const atCartLimit = totalItems >= MAX_CART_ITEMS;
-  const disabled = outOfStock || atStockLimit || atCartLimit;
+  const disabled = outOfStock || noSizeSelected || atStockLimit || atCartLimit;
 
   const handleClick = () => {
     if (atCartLimit) {
       alert(BULK_ORDER_MESSAGE);
       return;
     }
-    if (atStockLimit) {
-      alert(`Only ${stock} available for ${product.name}`);
+    if (hasSize && !selectedSize) {
+      alert("Please select a size");
       return;
     }
-    addItem({ id: product.id, name: product.name, price: product.price, category: product.category, image: product.image });
+    if (atStockLimit) {
+      alert(hasSize ? `Only ${selectedSizeStock} available for ${product.name} (${selectedSize})` : `Only ${stock} available for ${product.name}`);
+      return;
+    }
+    addItem({ id: product.id, size: hasSize ? selectedSize : "ONE_SIZE", name: product.name, price: product.price, category: product.category, image: product.image });
   };
 
-  const label = outOfStock
-    ? "Out of Stock"
-    : `Add to Cart — $${product.price.toFixed(2)}`;
+  const label = outOfStock ? "Out of Stock" : `Add to Cart — $${product.price.toFixed(2)}`;
 
   return (
-    <div>
+    <div className="space-y-3">
+      {hasSize && <div>
+        <label className="block text-xs uppercase tracking-wider text-text-muted mb-2">Size</label>
+        <select
+          value={selectedSize}
+          onChange={(e) => setSelectedSize(e.target.value)}
+          disabled={outOfStock}
+          className="w-full px-3 py-3 rounded-full border border-blue-pale bg-white text-navy text-sm focus:outline-none focus:ring-2 focus:ring-gold/50 disabled:opacity-50"
+        >
+          {outOfStock ? (
+            <option value="">No sizes available</option>
+          ) : (
+            availableSizes.map((s) => (
+              <option key={s.size} value={s.size}>{s.size}</option>
+            ))
+          )}
+        </select>
+      </div>}
       <button
         onClick={handleClick}
         disabled={disabled}
@@ -38,8 +70,12 @@ export default function AddToCartButton({ product }: { product: { id: string; na
       >
         {label}
       </button>
-      {!outOfStock && stock <= 5 && (
-        <p className="text-xs text-amber-600 text-center mt-2">Only {stock} left in stock</p>
+
+      {!outOfStock && hasSize && selectedSizeStock > 0 && selectedSizeStock <= 5 && (
+        <p className="text-xs text-amber-600 text-center">Only {selectedSizeStock} left in size {selectedSize}</p>
+      )}
+      {!outOfStock && !hasSize && stock > 0 && stock <= 5 && (
+        <p className="text-xs text-amber-600 text-center">Only {stock} left</p>
       )}
     </div>
   );
