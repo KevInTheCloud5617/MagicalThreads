@@ -20,8 +20,9 @@ ENV NEXT_PUBLIC_SITE_NAME="Magical Threads with Meg"
 ENV NEXT_PUBLIC_SITE_URL=https://magicalthreadswithmeg.com
 ENV NEXT_PUBLIC_INSTAGRAM_HANDLE=magicalthreadswithmeg
 ENV NEXT_PUBLIC_CONTACT_EMAIL=meg@magicalthreadswithmeg.com
-ENV NEXT_PUBLIC_STRIPE_MODE=test
-ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=placeholder
+ENV NEXT_PUBLIC_STRIPE_MODE=live
+ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=placeholder
+ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 
 # Build both - cache bust with unique timestamp
 RUN echo "build-bust-20260411-1425" && cd site && npm run build
