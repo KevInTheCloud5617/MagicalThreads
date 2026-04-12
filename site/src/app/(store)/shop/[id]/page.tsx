@@ -47,9 +47,6 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                 Available sizes: {((product as any).sizes ?? []).filter((s: any) => s.stock > 0).map((s: any) => s.size).join(", ") || "None"}
               </p>}
               <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: (product as any).stock ?? 0, hasSize: Boolean((product as any).hasSize), category: product.category, image: product.image ?? undefined, sizes: (product as any).sizes ?? [] }} />
-              <Link href="/custom" className="block w-full text-center border-2 border-gold text-gold hover:bg-gold hover:text-navy font-medium py-3.5 rounded-full transition-all text-sm uppercase tracking-wider">
-                Request Custom Version
-              </Link>
             </div>
 
             <p className="text-text-muted/60 text-xs mt-4 text-center">

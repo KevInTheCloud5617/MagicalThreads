@@ -62,12 +62,6 @@ export default function AboutPage() {
               >
                 Shop My Creations
               </Link>
-              <Link
-                href="/custom"
-                className="border-2 border-navy text-navy hover:bg-navy hover:text-white font-medium px-8 py-3 rounded-full transition-all text-sm uppercase tracking-wider text-center"
-              >
-                Custom Orders
-              </Link>
             </div>
           </div>
         </div>

@@ -144,23 +144,6 @@ export default function ShopPage() {
         )}
       </section>
 
-      {/* Custom Orders CTA */}
-      <section className="max-w-4xl mx-auto px-4 pb-16">
-        <div className="bg-blue-pale/50 rounded-2xl p-8 text-center border border-blue-pale">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy mb-3">
-            Don&apos;t See What You&apos;re Looking For?
-          </h2>
-          <p className="text-text-muted mb-6">
-            I love bringing custom ideas to life! Tell me your vision and I&apos;ll make it happen.
-          </p>
-          <Link
-            href="/custom"
-            className="bg-gold hover:bg-gold-light text-navy font-semibold px-8 py-3 rounded-full transition-all hover:shadow-lg text-sm uppercase tracking-wider inline-block"
-          >
-            Request a Custom Order
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }
