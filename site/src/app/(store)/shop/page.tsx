@@ -52,11 +52,13 @@ export default function ShopPage() {
           <div className="absolute bottom-6 right-[20%] text-gold/15 text-lg animate-sparkle" style={{ animationDelay: "1s" }}>✧</div>
         </div>
         <div className="relative z-10 max-w-3xl mx-auto px-4">
-          <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-bold text-white mb-3">
-            Shop
+          <p className="text-gold/85 text-xs md:text-sm tracking-[0.35em] uppercase mb-3">Our Collection</p>
+          <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-bold text-white mb-4">
+            Shop the Magic
           </h1>
-          <p className="text-blue-light/80 text-lg">
-            Browse handcrafted pieces, each made with love and a touch of magic
+          <div className="mx-auto mb-4 h-px w-40 bg-gradient-to-r from-transparent via-gold/80 to-transparent" />
+          <p className="text-blue-light/90 text-lg">
+            Each piece handcrafted with love and a touch of magic ✨
           </p>
         </div>
       </section>

@@ -32,11 +32,11 @@ export default function Navbar() {
               ✨
             </span>
             <div className="flex flex-col">
-              <span className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wider text-white group-hover:text-gold transition-colors duration-300">
-                Magical Threads
+              <span className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-semibold tracking-wide text-white group-hover:text-gold transition-colors duration-300">
+                Magical Threads with Meg
               </span>
-              <span className="text-[10px] tracking-[0.3em] uppercase text-gold/60 font-light">
-                Every stitch tells a story
+              <span className="text-[10px] tracking-[0.28em] uppercase text-gold/70 font-light">
+                Handcrafted embroidery & custom crafts
               </span>
             </div>
           </Link>
@@ -47,7 +47,6 @@ export default function Navbar() {
               { href: "/", label: "Home" },
               { href: "/shop", label: "Shop" },
               { href: "/about", label: "About" },
-              { href: "/custom", label: "Custom Orders" },
               { href: "/contact", label: "Contact" },
             ].map((link) => (
               <Link
@@ -59,13 +58,14 @@ export default function Navbar() {
                 <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-gradient-to-r from-gold/0 via-gold to-gold/0 group-hover:w-3/4 transition-all duration-300" />
               </Link>
             ))}
-            {/* CTA button */}
-            <Link
-              href="/shop"
-              className="ml-4 px-5 py-2 bg-gradient-to-r from-gold to-gold-light text-navy text-sm font-semibold rounded-full hover:shadow-[0_0_20px_rgba(201,169,110,0.4)] hover:scale-105 transition-all duration-300"
+            <a
+              href="https://instagram.com/magicalthreadswithmeg"
+              target="_blank"
+              rel="noreferrer"
+              className="ml-4 px-4 py-2 border border-gold/60 text-gold text-xs uppercase tracking-[0.2em] rounded-full hover:bg-gold/10 transition-colors duration-300"
             >
-              Shop Now ✨
-            </Link>
+              @magicalthreadswithmeg
+            </a>
           </div>
 
           {/* Mobile controls */}
@@ -100,7 +100,6 @@ export default function Navbar() {
             { href: "/", label: "Home" },
             { href: "/shop", label: "Shop" },
             { href: "/about", label: "About" },
-            { href: "/custom", label: "Custom Orders" },
             { href: "/contact", label: "Contact" },
           ].map((link) => (
             <Link
@@ -112,13 +111,15 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/shop"
-            className="block mt-3 text-center py-2.5 bg-gradient-to-r from-gold to-gold-light text-navy text-sm font-semibold rounded-full"
+          <a
+            href="https://instagram.com/magicalthreadswithmeg"
+            target="_blank"
+            rel="noreferrer"
+            className="block mt-3 text-center py-2.5 border border-gold/60 text-gold text-xs uppercase tracking-[0.2em] rounded-full"
             onClick={() => setIsOpen(false)}
           >
-            Shop Now ✨
-          </Link>
+            @magicalthreadswithmeg
+          </a>
         </div>
       </div>
     </nav>
