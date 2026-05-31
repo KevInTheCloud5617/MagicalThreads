@@ -1,6 +1,11 @@
 // Shared types + validators for embroidery customization.
 // customizationOptions / customization are stored as JSON-encoded strings
 // (Azure SQL Server has no native JSON column type).
+//
+// NOTE: This file is the source of truth. Mirrored in
+//   admin/src/lib/customization.ts
+//   site/src/lib/customization.ts
+// Keep all three in sync.
 
 export type CustomizationType = "text" | "name" | "monogram" | "word";
 export const CUSTOMIZATION_TYPES: CustomizationType[] = ["text", "name", "monogram", "word"];
@@ -17,6 +22,11 @@ export type CustomizationOptions = {
   fonts: string[];
   placements: string[];
   upcharge: number;
+  // When true, the corresponding array is product-specific; when false/undefined
+  // the storefront falls back to the global PersonalizationPresets library.
+  colorsOverride?: boolean;
+  fontsOverride?: boolean;
+  placementsOverride?: boolean;
 };
 
 export type Customization = {
@@ -25,6 +35,22 @@ export type Customization = {
   font: string;
   placement: string;
   upcharge: number;
+};
+
+export type PersonalizationPresets = {
+  colors: CustomizationColor[];
+  fonts: string[];      // subset of FONT_PRESETS
+  placements: string[]; // subset of PLACEMENT_PRESETS
+  defaultMaxChars: number;
+  defaultUpcharge: number;
+};
+
+export const DEFAULT_PRESETS: PersonalizationPresets = {
+  colors: [],
+  fonts: [...FONT_PRESETS],
+  placements: [...PLACEMENT_PRESETS],
+  defaultMaxChars: 15,
+  defaultUpcharge: 0,
 };
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -47,18 +73,7 @@ export function parseCustomizationOptions(raw: unknown): CustomizationOptions | 
     ? (o.types.filter((t) => typeof t === "string" && CUSTOMIZATION_TYPES.includes(t as CustomizationType)) as CustomizationType[])
     : [];
   const maxChars = clampInt(o.maxChars, 1, 50, 15);
-  const colors = Array.isArray(o.colors)
-    ? (o.colors
-        .map((c) => {
-          if (!c || typeof c !== "object") return null;
-          const cc = c as Record<string, unknown>;
-          const name = typeof cc.name === "string" ? cc.name.trim().slice(0, 40) : "";
-          const hex = typeof cc.hex === "string" ? cc.hex.trim() : "";
-          if (!name || !HEX_RE.test(hex)) return null;
-          return { name, hex } as CustomizationColor;
-        })
-        .filter(Boolean) as CustomizationColor[])
-    : [];
+  const colors = parseColorList(o.colors);
   const fonts = Array.isArray(o.fonts)
     ? (o.fonts.filter((f) => typeof f === "string" && FONT_PRESETS.includes(f)) as string[])
     : [];
@@ -66,7 +81,7 @@ export function parseCustomizationOptions(raw: unknown): CustomizationOptions | 
     ? (o.placements.filter((p) => typeof p === "string" && PLACEMENT_PRESETS.includes(p)) as string[])
     : [];
   const upcharge = Number(o.upcharge);
-  return {
+  const out: CustomizationOptions = {
     enabled,
     types,
     maxChars,
@@ -75,6 +90,24 @@ export function parseCustomizationOptions(raw: unknown): CustomizationOptions | 
     placements,
     upcharge: Number.isFinite(upcharge) && upcharge >= 0 ? Math.round(upcharge * 100) / 100 : 0,
   };
+  if (typeof o.colorsOverride === "boolean") out.colorsOverride = o.colorsOverride;
+  if (typeof o.fontsOverride === "boolean") out.fontsOverride = o.fontsOverride;
+  if (typeof o.placementsOverride === "boolean") out.placementsOverride = o.placementsOverride;
+  return out;
+}
+
+function parseColorList(raw: unknown): CustomizationColor[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c) => {
+      if (!c || typeof c !== "object") return null;
+      const cc = c as Record<string, unknown>;
+      const name = typeof cc.name === "string" ? cc.name.trim().slice(0, 40) : "";
+      const hex = typeof cc.hex === "string" ? cc.hex.trim() : "";
+      if (!name || !HEX_RE.test(hex)) return null;
+      return { name, hex } as CustomizationColor;
+    })
+    .filter((c): c is CustomizationColor => Boolean(c));
 }
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -86,6 +119,36 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
 export function serializeCustomizationOptions(opts: CustomizationOptions | null): string | null {
   if (!opts) return null;
   return JSON.stringify(opts);
+}
+
+export function parsePersonalizationPresets(raw: unknown): PersonalizationPresets | null {
+  if (raw == null) return null;
+  let obj: unknown = raw;
+  if (typeof raw === "string") {
+    if (!raw.trim()) return null;
+    try {
+      obj = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!obj || typeof obj !== "object") return null;
+  const o = obj as Record<string, unknown>;
+  const colors = parseColorList(o.colors);
+  const fonts = Array.isArray(o.fonts)
+    ? (o.fonts.filter((f) => typeof f === "string" && FONT_PRESETS.includes(f)) as string[])
+    : [...FONT_PRESETS];
+  const placements = Array.isArray(o.placements)
+    ? (o.placements.filter((p) => typeof p === "string" && PLACEMENT_PRESETS.includes(p)) as string[])
+    : [...PLACEMENT_PRESETS];
+  const defaultMaxChars = clampInt(o.defaultMaxChars, 1, 50, 15);
+  const upRaw = Number(o.defaultUpcharge);
+  const defaultUpcharge = Number.isFinite(upRaw) && upRaw >= 0 ? Math.round(upRaw * 100) / 100 : 0;
+  return { colors, fonts, placements, defaultMaxChars, defaultUpcharge };
+}
+
+export function serializePersonalizationPresets(p: PersonalizationPresets): string {
+  return JSON.stringify(p);
 }
 
 export type CustomizationValidationResult =
