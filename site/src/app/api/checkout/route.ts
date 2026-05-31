@@ -402,7 +402,10 @@ export async function POST(req: NextRequest) {
         mode: "payment",
         line_items: reservedItems.map((item) => {
           const upcharge = item.customization?.upcharge ?? 0;
-          if (item.stripePriceId && upcharge === 0) {
+          const personalizationDescription = item.customization
+            ? `Personalization: "${item.customization.text}" · ${item.customization.color.name} · ${item.customization.font} · ${item.customization.placement}`
+            : undefined;
+          if (item.stripePriceId && upcharge === 0 && !personalizationDescription) {
             return {
               price: item.stripePriceId,
               quantity: item.quantity,
@@ -414,9 +417,17 @@ export async function POST(req: NextRequest) {
               currency: "usd",
               product_data: {
                 name: item.name,
+                ...(personalizationDescription ? { description: personalizationDescription } : {}),
                 metadata: {
                   productId: item.id,
                   size: item.size || "ONE_SIZE",
+                  ...(item.customization ? {
+                    personalizationText: item.customization.text,
+                    personalizationColor: item.customization.color.name,
+                    personalizationColorHex: item.customization.color.hex,
+                    personalizationFont: item.customization.font,
+                    personalizationPlacement: item.customization.placement,
+                  } : {}),
                 },
               },
               unit_amount: Math.round((item.price + upcharge) * 100),
