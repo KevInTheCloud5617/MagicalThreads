@@ -60,7 +60,10 @@ export default function Dashboard() {
     }
 
     setPassword("");
-    await loadDashboard();
+    // Hard reload so the RSC layout (feature flags, sidebar) re-renders
+    // with the authenticated cookie. Avoids a class of iOS Safari issues
+    // where buttons appear inert until the next refresh.
+    window.location.reload();
   }
 
   if (loading) {

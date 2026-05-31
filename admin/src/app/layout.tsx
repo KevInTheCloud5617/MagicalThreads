@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Dancing_Script, Bebas_Neue, Black_Ops_One, Allura, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 import { APP_VERSION } from "../lib/version";
@@ -12,6 +12,12 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
 });
+
+const fontScript = Dancing_Script({ variable: "--font-script", subsets: ["latin"], display: "swap", weight: "700" });
+const fontBlock = Bebas_Neue({ variable: "--font-block", subsets: ["latin"], display: "swap", weight: "400" });
+const fontVarsity = Black_Ops_One({ variable: "--font-varsity", subsets: ["latin"], display: "swap", weight: "400" });
+const fontCursive = Allura({ variable: "--font-cursive", subsets: ["latin"], display: "swap", weight: "400" });
+const fontSerif = Playfair_Display({ variable: "--font-serif-display", subsets: ["latin"], display: "swap", weight: "700" });
 
 export const metadata: Metadata = {
   title: "Admin | Magical Threads with Meg",
@@ -29,7 +35,7 @@ export default async function RootLayout({
   const flags = await getServerFlagSnapshot();
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased min-h-screen`}>
+      <body className={`${inter.variable} ${fontScript.variable} ${fontBlock.variable} ${fontVarsity.variable} ${fontCursive.variable} ${fontSerif.variable} font-[family-name:var(--font-inter)] antialiased min-h-screen`}>
         <AdminFlagsProvider flags={flags}>
           <Sidebar />
           <main className="pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0 md:ml-64 min-h-screen">

@@ -145,7 +145,7 @@ export default function ProductsPage() {
 
     <div className="flex gap-2 mb-6 flex-wrap"><button onClick={() => setFilter(null)} className={`px-4 py-2 rounded-lg text-sm ${filter === null ? "bg-navy text-white" : "bg-white border"}`}>All ({products.length})</button>{CATEGORIES.map((cat) => <button key={cat.slug} onClick={() => setFilter(cat.slug)} className={`px-4 py-2 rounded-lg text-sm ${filter === cat.slug ? "bg-navy text-white" : "bg-white border"}`}>{cat.emoji} {cat.name}</button>)}</div>
 
-    {showForm && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4"><div className="bg-white md:rounded-2xl p-6 w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg shadow-xl overflow-y-auto"><h3 className="text-lg font-bold mb-4">{editing ? "Edit Product" : "Add Product"}</h3>
+    {showForm && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4"><div className="bg-white md:rounded-2xl p-6 pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-6 w-full h-full md:h-auto md:max-h-[90vh] md:max-w-lg shadow-xl overflow-y-auto"><h3 className="text-lg font-bold mb-4">{editing ? "Edit Product" : "Add Product"}</h3>
       <div className="space-y-4">
         <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Product name" />
         <div className="grid grid-cols-3 gap-4"><input type="text" inputMode="decimal" value={form.price} onChange={(e) => { const val = e.target.value; if (val === "" || /^\d+\.?\d{0,2}$/.test(val)) setForm({ ...form, price: val }); }} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="25.00" />{!form.hasSize && <input type="number" min="0" step="1" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Stock" />}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm">{CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select></div>
@@ -337,16 +337,25 @@ export default function ProductsPage() {
                     <div>
                       <label className="block text-xs font-semibold mb-1">Fonts</label>
                       <div className="flex flex-wrap gap-3">
-                        {FONT_PRESETS.map((f) => (
-                          <label key={f} className="text-xs flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={co.fonts.includes(f)}
-                              onChange={(e) => setCO({ fonts: e.target.checked ? [...co.fonts, f] : co.fonts.filter((x) => x !== f) })}
-                            />
-                            {f}
-                          </label>
-                        ))}
+                        {FONT_PRESETS.map((f) => {
+                          const fontFamily = ({
+                            Script: 'var(--font-script), "Brush Script MT", cursive',
+                            Block: 'var(--font-block), "Arial Black", Impact, sans-serif',
+                            Varsity: 'var(--font-varsity), Impact, "Arial Black", sans-serif',
+                            Cursive: 'var(--font-cursive), "Snell Roundhand", cursive',
+                            Serif: 'var(--font-serif-display), Georgia, "Times New Roman", serif',
+                          } as Record<string, string>)[f];
+                          return (
+                            <label key={f} className="text-sm flex items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={co.fonts.includes(f)}
+                                onChange={(e) => setCO({ fonts: e.target.checked ? [...co.fonts, f] : co.fonts.filter((x) => x !== f) })}
+                              />
+                              <span style={{ fontFamily }}>{f}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                     <div>
