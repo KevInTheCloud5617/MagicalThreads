@@ -8,6 +8,7 @@ import {
   validateCustomizationAgainstOptions,
   type Customization,
 } from "@/lib/customization";
+import { getPersonalizationPresets, resolveCustomizationOptions } from "@/lib/personalization-presets";
 
 class CheckoutBusinessError extends Error {
   status: number;
@@ -90,6 +91,7 @@ function resolveStripeMode() {
 }
 
 async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[]> {
+  const presets = await getPersonalizationPresets(prisma);
   return prisma.$transaction(async (tx) => {
     const validated: ValidatedItem[] = [];
 
@@ -104,7 +106,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
 
       let validatedCustomization: Customization | undefined;
       if (item.customization) {
-        const opts = parseCustomizationOptions(product.customizationOptions);
+        const opts = resolveCustomizationOptions(parseCustomizationOptions(product.customizationOptions), presets);
         if (!opts || !opts.enabled) {
           throw new CheckoutBusinessError(`Customization not enabled for product ${product.name}`, 400);
         }
