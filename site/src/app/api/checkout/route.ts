@@ -2,6 +2,12 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
+import {
+  parseCustomizationOptions,
+  serializeCustomization,
+  validateCustomizationAgainstOptions,
+  type Customization,
+} from "@/lib/customization";
 
 class CheckoutBusinessError extends Error {
   status: number;
@@ -17,6 +23,7 @@ type CheckoutInputItem = {
   id: string;
   quantity: number;
   size?: string;
+  customization?: Customization;
 };
 
 type ValidatedItem = {
@@ -27,6 +34,7 @@ type ValidatedItem = {
   size: string | null;
   hasSize: boolean;
   stripePriceId: string | null;
+  customization?: Customization;
 };
 
 type ReservedItem = ValidatedItem;
@@ -94,6 +102,19 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
         throw new CheckoutBusinessError("Product unavailable", 409);
       }
 
+      let validatedCustomization: Customization | undefined;
+      if (item.customization) {
+        const opts = parseCustomizationOptions(product.customizationOptions);
+        if (!opts || !opts.enabled) {
+          throw new CheckoutBusinessError(`Customization not enabled for product ${product.name}`, 400);
+        }
+        const result = validateCustomizationAgainstOptions(item.customization, opts);
+        if (!result.ok) {
+          throw new CheckoutBusinessError(result.error, 400);
+        }
+        validatedCustomization = { ...result.value, upcharge: opts.upcharge };
+      }
+
       if (product.hasSize) {
         if (!item.size || typeof item.size !== "string" || item.size === "ONE_SIZE") {
           throw new CheckoutBusinessError(`Size is required for ${product.name}`, 400);
@@ -115,6 +136,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
           size: item.size,
           hasSize: true,
           stripePriceId: product.stripePriceId,
+          customization: validatedCustomization,
         });
         continue;
       }
@@ -131,6 +153,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
         size: null,
         hasSize: false,
         stripePriceId: product.stripePriceId,
+        customization: validatedCustomization,
       });
     }
 
@@ -138,7 +161,11 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
   });
 }
 
-async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<ReservedItem[]> {
+async function reserveItemsForMock(items: CheckoutInputItem[], validatedItems: ValidatedItem[]): Promise<ReservedItem[]> {
+  const customizationById = new Map<string, Customization | undefined>();
+  for (const v of validatedItems) {
+    customizationById.set(`${v.id}|${v.size ?? ""}`, v.customization);
+  }
   return prisma.$transaction(async (tx) => {
     const reserved: ReservedItem[] = [];
 
@@ -150,6 +177,8 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
       if (!product) {
         throw new CheckoutBusinessError("Product unavailable", 409);
       }
+
+      const customization = customizationById.get(`${item.id}|${item.size ?? ""}`);
 
       if (product.hasSize) {
         if (!item.size || typeof item.size !== "string" || item.size === "ONE_SIZE") {
@@ -177,6 +206,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
           size: item.size,
           hasSize: true,
           stripePriceId: product.stripePriceId,
+          customization,
         });
         continue;
       }
@@ -198,6 +228,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[]): Promise<Reserved
         size: null,
         hasSize: false,
         stripePriceId: product.stripePriceId,
+        customization,
       });
     }
 
@@ -304,8 +335,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (stripeMode === "mock") {
-      const reservation = await reserveItemsForMock(parsedItems);
-      const subtotal = reservation.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const reservation = await reserveItemsForMock(parsedItems, validatedItems);
+      const subtotal = reservation.reduce((sum, item) => sum + (item.price + (item.customization?.upcharge ?? 0)) * item.quantity, 0);
       const subtotalCents = Math.round(subtotal * 100);
       const shippingCents = getShippingAmountCents(subtotalCents);
       const total = subtotal + shippingCents / 100;
@@ -326,6 +357,7 @@ export async function POST(req: NextRequest) {
               quantity: item.quantity,
               price: item.price,
               size: item.size,
+              customization: serializeCustomization(item.customization ?? null),
             })),
           },
         },
@@ -350,7 +382,7 @@ export async function POST(req: NextRequest) {
 
     const reservedItems = await reserveItemsForStripe(validatedItems);
 
-    const subtotal = reservedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = reservedItems.reduce((sum, item) => sum + (item.price + (item.customization?.upcharge ?? 0)) * item.quantity, 0);
     const subtotalCents = Math.round(subtotal * 100);
     const shippingCents = getShippingAmountCents(subtotalCents);
     const total = subtotal + shippingCents / 100;
@@ -367,7 +399,8 @@ export async function POST(req: NextRequest) {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: reservedItems.map((item) => {
-          if (item.stripePriceId) {
+          const upcharge = item.customization?.upcharge ?? 0;
+          if (item.stripePriceId && upcharge === 0) {
             return {
               price: item.stripePriceId,
               quantity: item.quantity,
@@ -384,7 +417,7 @@ export async function POST(req: NextRequest) {
                   size: item.size || "ONE_SIZE",
                 },
               },
-              unit_amount: Math.round(item.price * 100),
+              unit_amount: Math.round((item.price + upcharge) * 100),
             },
             quantity: item.quantity,
           };
@@ -417,6 +450,7 @@ export async function POST(req: NextRequest) {
               quantity: item.quantity,
               price: item.price,
               size: item.size,
+              customization: serializeCustomization(item.customization ?? null),
             })),
           },
         },

@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useCart, MAX_CART_ITEMS, BULK_ORDER_MESSAGE } from "@/context/CartContext";
+import type { Customization } from "@/lib/customization";
 
 type ProductSize = { size: string; stock: number };
 
-export default function AddToCartButton({ product }: { product: { id: string; name: string; price: number; stock?: number; hasSize?: boolean; category?: string; image?: string; sizes?: ProductSize[] } }) {
+export default function AddToCartButton({ product, customization, customizationRequired, onRequireCustomization }: { product: { id: string; name: string; price: number; stock?: number; hasSize?: boolean; category?: string; image?: string; sizes?: ProductSize[] }; customization?: Customization | null; customizationRequired?: boolean; onRequireCustomization?: () => void }) {
   const { addItem, items } = useCart();
 
   const hasSize = Boolean(product.hasSize);
@@ -42,6 +43,12 @@ export default function AddToCartButton({ product }: { product: { id: string; na
       return;
     }
 
+    if (customizationRequired && !customization) {
+      onRequireCustomization?.();
+      alert("Please complete personalization before adding to cart");
+      return;
+    }
+
     addItem({
       id: product.id,
       size: hasSize ? selectedSize : "ONE_SIZE",
@@ -50,10 +57,12 @@ export default function AddToCartButton({ product }: { product: { id: string; na
       availableStock: availableForSelection,
       category: product.category,
       image: product.image,
+      ...(customization ? { customization } : {}),
     });
   };
 
-  const label = outOfStock ? "Out of Stock" : `Add to Cart — $${product.price.toFixed(2)}`;
+  const effectivePrice = product.price + (customization?.upcharge ?? 0);
+  const label = outOfStock ? "Out of Stock" : `Add to Cart — $${effectivePrice.toFixed(2)}`;
 
   return (
     <div className="space-y-3">

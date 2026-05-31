@@ -3,13 +3,23 @@
 import { CartProvider } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
 import FloatingCartButton from "./FloatingCartButton";
+import { FeatureFlagsProvider } from "@/lib/useFeature";
+import type { FeatureFlag } from "@/lib/feature-flags";
 
-export default function ClientProviders({ children }: { children: React.ReactNode }) {
+export default function ClientProviders({
+  children,
+  flags,
+}: {
+  children: React.ReactNode;
+  flags?: Partial<Record<FeatureFlag, boolean>>;
+}) {
   return (
-    <CartProvider>
-      {children}
-      <FloatingCartButton />
-      <CartDrawer />
-    </CartProvider>
+    <FeatureFlagsProvider initial={flags ?? {}}>
+      <CartProvider>
+        {children}
+        <FloatingCartButton />
+        <CartDrawer />
+      </CartProvider>
+    </FeatureFlagsProvider>
   );
 }

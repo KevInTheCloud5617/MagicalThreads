@@ -73,6 +73,7 @@ export default function CartDrawer() {
             id: i.id,
             quantity: i.quantity,
             ...(i.size !== "ONE_SIZE" ? { size: i.size } : {}),
+            ...(i.customization ? { customization: i.customization } : {}),
           })),
         }),
       });
@@ -116,8 +117,14 @@ export default function CartDrawer() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-navy text-sm truncate">{item.name}</h3>
-                  <p className="text-gold font-semibold text-sm">${item.price.toFixed(2)}</p>
+                  <p className="text-gold font-semibold text-sm">${(item.price + (item.customization?.upcharge ?? 0)).toFixed(2)}</p>
                   {item.size !== "ONE_SIZE" && <p className="text-text-muted text-xs">Size: {item.size}</p>}
+                  {item.customization && (
+                    <p className="text-text-muted text-[11px] leading-snug">
+                      Personalization: &lsquo;{item.customization.text}&rsquo; — {item.customization.color.name} {item.customization.font}, {item.customization.placement}
+                      {item.customization.upcharge > 0 ? ` (+$${item.customization.upcharge.toFixed(2)})` : ""}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">−</button>
                     <span className="text-sm text-navy">{item.quantity}</span>

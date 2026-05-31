@@ -23,6 +23,7 @@ model Product {
   hasSize     Boolean  @default(false)
   active      Boolean  @default(true)
   isExample   Boolean  @default(false)
+  customizationOptions String?  @db.NVarChar(Max)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -63,6 +64,7 @@ model OrderItem {
   quantity  Int     @default(1)
   price     Float
   size      String?
+  customization String?  @db.NVarChar(Max)
 
   order   Order    @relation(fields: [orderId], references: [id])
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)

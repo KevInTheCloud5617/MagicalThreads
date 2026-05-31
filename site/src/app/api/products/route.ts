@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { parseCustomizationOptions } from "@/lib/customization";
 
 export async function GET() {
   const products = await prisma.product.findMany({
@@ -8,8 +9,11 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  // explicit include for API contract
-  const withHasSize = products.map((p) => ({ ...p, hasSize: p.hasSize }));
+  const withHasSize = products.map((p) => ({
+    ...p,
+    hasSize: p.hasSize,
+    customizationOptions: parseCustomizationOptions(p.customizationOptions),
+  }));
 
   return NextResponse.json(withHasSize);
 }

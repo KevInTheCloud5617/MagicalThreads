@@ -1,8 +1,9 @@
 import { getProductBySlug, getProducts, categories } from "@/data/products";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import AddToCartButton from "@/components/AddToCartButton";
+import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import ProductImageGallery from "@/components/ProductImageGallery";
+import { parseCustomizationOptions, type CustomizationOptions } from "@/lib/customization";
 
 type ProductView = {
   id: string;
@@ -16,6 +17,7 @@ type ProductView = {
   hasSize?: boolean | null;
   sizes?: Array<{ size: string; stock: number }>;
   images?: Array<{ url: string; alt?: string | null; sortOrder: number }>;
+  customizationOptions?: string | null;
 };
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +26,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
   if (!product) return notFound();
 
+  const customizationOptions: CustomizationOptions | null = parseCustomizationOptions(product.customizationOptions ?? null);
   const allProducts = (await getProducts()) as ProductView[];
   const categoryInfo = categories.find((c) => c.slug === product.category);
   const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);
@@ -55,7 +58,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               {Boolean(product.hasSize) && <p className="text-xs text-text-muted">
                 Available sizes: {(product.sizes ?? []).filter((s) => s.stock > 0).map((s) => s.size).join(", ") || "None"}
               </p>}
-              <AddToCartButton product={{ id: product.id, name: product.name, price: product.price, stock: product.stock ?? 0, hasSize: Boolean(product.hasSize), category: product.category, image: product.image ?? undefined, sizes: product.sizes ?? [] }} />
+              <ProductPurchasePanel product={{ id: product.id, name: product.name, price: product.price, stock: product.stock ?? 0, hasSize: Boolean(product.hasSize), category: product.category, image: product.image ?? undefined, sizes: product.sizes ?? [], customizationOptions }} />
             </div>
 
             <p className="text-text-muted/60 text-xs mt-4 text-center">

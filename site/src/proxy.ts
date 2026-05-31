@@ -63,6 +63,44 @@ function checkPreviewAuth(request: NextRequest): NextResponse | null {
   );
 }
 
+function applyFeatureFlagOverrides(request: NextRequest, response: NextResponse) {
+  const ffValues = request.nextUrl.searchParams.getAll("ff");
+  if (ffValues.length === 0) return response;
+
+  const existingRaw = request.cookies.get("ff-overrides")?.value;
+  let overrides: Record<string, boolean> = {};
+  if (existingRaw) {
+    try {
+      const parsed = JSON.parse(existingRaw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === "boolean") overrides[k] = v;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  for (const raw of ffValues) {
+    for (const piece of raw.split(",")) {
+      const v = piece.trim();
+      if (!v) continue;
+      if (v.startsWith("-")) overrides[v.slice(1)] = false;
+      else overrides[v] = true;
+    }
+  }
+
+  response.cookies.set("ff-overrides", JSON.stringify(overrides), {
+    maxAge: 60 * 60 * 24,
+    path: "/",
+    httpOnly: false,
+    sameSite: "lax",
+  });
+
+  return response;
+}
+
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const { isPreviewHost } = getHosts(request);
@@ -85,10 +123,10 @@ export function proxy(request: NextRequest) {
   if (authResponse) return authResponse;
 
   if (isPreviewHost && path === "/") {
-    return applySecurityHeaders(NextResponse.rewrite(new URL("/shop", request.url)));
+    return applyFeatureFlagOverrides(request, applySecurityHeaders(NextResponse.rewrite(new URL("/shop", request.url))));
   }
 
-  return applySecurityHeaders(NextResponse.next());
+  return applyFeatureFlagOverrides(request, applySecurityHeaders(NextResponse.next()));
 }
 
 export const config = {

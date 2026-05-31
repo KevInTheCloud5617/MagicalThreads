@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useFeature } from "@/lib/useFeature";
+import {
+  CUSTOMIZATION_TYPES,
+  FONT_PRESETS,
+  PLACEMENT_PRESETS,
+  type CustomizationOptions,
+} from "@/lib/customization";
 
 const SIZE_OPTIONS = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type SizeKey = (typeof SIZE_OPTIONS)[number];
@@ -20,6 +27,7 @@ interface Product {
   active: boolean;
   hasSize: boolean;
   sizes?: Array<{ size: string; stock: number }>;
+  customizationOptions?: CustomizationOptions | null;
 }
 
 const CATEGORIES = [
@@ -31,14 +39,25 @@ const CATEGORIES = [
 
 const emptySizes = (): SizesMap => ({ S: "0", M: "0", L: "0", XL: "0", "2XL": "0", "3XL": "0" });
 
+const defaultCustomizationOptions = (): CustomizationOptions => ({
+  enabled: false,
+  types: [],
+  maxChars: 15,
+  colors: [],
+  fonts: [],
+  placements: [],
+  upcharge: 0,
+});
+
 export default function ProductsPage() {
+  const embroideryOn = useFeature("embroidery");
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
 
-  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes() };
+  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes(), customizationOptions: defaultCustomizationOptions() };
   const [uploading, setUploading] = useState(false);
   const [uploadingAdditional, setUploadingAdditional] = useState(false);
   const [form, setForm] = useState(emptyProduct);
@@ -228,10 +247,144 @@ export default function ProductsPage() {
         </div>
 
         <input type="text" value={form.tag || ""} onChange={(e) => setForm({ ...form, tag: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Tag" />
+
+        {embroideryOn && (() => {
+          const co = form.customizationOptions;
+          const setCO = (partial: Partial<CustomizationOptions>) => setForm((prev) => ({ ...prev, customizationOptions: { ...prev.customizationOptions, ...partial } }));
+          return (
+            <details className="border rounded-lg p-3" open={co.enabled}>
+              <summary className="text-sm font-semibold cursor-pointer">Personalization</summary>
+              <div className="mt-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={co.enabled} onChange={(e) => setCO({ enabled: e.target.checked })} />
+                  Allow personalization for this product
+                </label>
+                {co.enabled && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">Types</label>
+                      <div className="flex flex-wrap gap-3">
+                        {CUSTOMIZATION_TYPES.map((t) => (
+                          <label key={t} className="text-xs flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={co.types.includes(t)}
+                              onChange={(e) => setCO({ types: e.target.checked ? [...co.types, t] : co.types.filter((x) => x !== t) })}
+                            />
+                            {t}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">Max characters</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={co.maxChars}
+                        onChange={(e) => setCO({ maxChars: Math.max(1, Math.min(50, parseInt(e.target.value || "0", 10) || 1)) })}
+                        className="w-24 px-2 py-1 rounded border text-sm"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold">Colors</label>
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-0.5 rounded border"
+                          onClick={() => setCO({ colors: [...co.colors, { name: "", hex: "#000000" }] })}
+                        >
+                          + Add Color
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {co.colors.map((c, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={c.name}
+                              placeholder="Color name"
+                              onChange={(e) => {
+                                const next = [...co.colors];
+                                next[idx] = { ...next[idx], name: e.target.value };
+                                setCO({ colors: next });
+                              }}
+                              className="flex-1 px-2 py-1 rounded border text-sm"
+                            />
+                            <input
+                              type="color"
+                              value={c.hex}
+                              onChange={(e) => {
+                                const next = [...co.colors];
+                                next[idx] = { ...next[idx], hex: e.target.value };
+                                setCO({ colors: next });
+                              }}
+                              className="w-10 h-8 border rounded"
+                            />
+                            <button
+                              type="button"
+                              className="text-xs px-2 py-1 rounded border text-red"
+                              onClick={() => setCO({ colors: co.colors.filter((_, i) => i !== idx) })}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        {co.colors.length === 0 && <p className="text-xs text-gray-500">No colors yet.</p>}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">Fonts</label>
+                      <div className="flex flex-wrap gap-3">
+                        {FONT_PRESETS.map((f) => (
+                          <label key={f} className="text-xs flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={co.fonts.includes(f)}
+                              onChange={(e) => setCO({ fonts: e.target.checked ? [...co.fonts, f] : co.fonts.filter((x) => x !== f) })}
+                            />
+                            {f}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">Placements</label>
+                      <div className="flex flex-wrap gap-3">
+                        {PLACEMENT_PRESETS.map((p) => (
+                          <label key={p} className="text-xs flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={co.placements.includes(p)}
+                              onChange={(e) => setCO({ placements: e.target.checked ? [...co.placements, p] : co.placements.filter((x) => x !== p) })}
+                            />
+                            {p}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">Upcharge ($)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={co.upcharge}
+                        onChange={(e) => setCO({ upcharge: Math.max(0, parseFloat(e.target.value || "0") || 0) })}
+                        className="w-28 px-2 py-1 rounded border text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </details>
+          );
+        })()}
       </div>
       <div className="flex gap-3 mt-6"><button onClick={handleSave} className="flex-1 bg-navy text-white py-2.5 rounded-lg text-sm">{editing ? "Save Changes" : "Add Product"}</button><button onClick={() => { setShowForm(false); setEditing(null); }} className="px-5 py-2.5 rounded-lg border text-sm">Cancel</button></div>
     </div></div>}
 
-    {loading ? <div className="text-center py-12">Loading...</div> : <div className="bg-white rounded-xl border shadow-sm overflow-hidden"><table className="w-full"><thead><tr className="border-b bg-gray-50/50"><th className="text-left text-xs px-5 py-3">Product</th><th className="text-left text-xs px-5 py-3 hidden md:table-cell">Category</th><th className="text-left text-xs px-5 py-3">Price</th><th className="text-left text-xs px-5 py-3">Stock</th><th className="text-left text-xs px-5 py-3">Status</th><th className="text-right text-xs px-5 py-3">Actions</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id} className="border-b"><td className="px-5 py-4"><div className="font-medium text-sm">{product.name}</div></td><td className="px-5 py-4 text-sm hidden md:table-cell">{product.category}</td><td className="px-5 py-4 text-sm font-semibold">${product.price.toFixed(2)}</td><td className="px-5 py-4 text-xs">{product.hasSize ? SIZE_OPTIONS.map((s) => `${s}:${product.sizes?.find((x) => x.size === s)?.stock ?? 0}`).join(" • ") : `Qty: ${product.stock}`}</td><td className="px-5 py-4"><button onClick={() => handleToggleActive(product)} className={`text-xs px-2.5 py-1 rounded-full ${product.active ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}>{product.active ? "Active" : "Hidden"}</button></td><td className="px-5 py-4 text-right"><button onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes) }); setShowForm(true); }} className="text-sm text-navy mr-3">Edit</button><button onClick={() => handleDelete(product.id)} className="text-sm text-red">Delete</button></td></tr>)}</tbody></table></div>}
+    {loading ? <div className="text-center py-12">Loading...</div> : <div className="bg-white rounded-xl border shadow-sm overflow-hidden"><table className="w-full"><thead><tr className="border-b bg-gray-50/50"><th className="text-left text-xs px-5 py-3">Product</th><th className="text-left text-xs px-5 py-3 hidden md:table-cell">Category</th><th className="text-left text-xs px-5 py-3">Price</th><th className="text-left text-xs px-5 py-3">Stock</th><th className="text-left text-xs px-5 py-3">Status</th><th className="text-right text-xs px-5 py-3">Actions</th></tr></thead><tbody>{filtered.map((product) => <tr key={product.id} className="border-b"><td className="px-5 py-4"><div className="font-medium text-sm">{product.name}</div></td><td className="px-5 py-4 text-sm hidden md:table-cell">{product.category}</td><td className="px-5 py-4 text-sm font-semibold">${product.price.toFixed(2)}</td><td className="px-5 py-4 text-xs">{product.hasSize ? SIZE_OPTIONS.map((s) => `${s}:${product.sizes?.find((x) => x.size === s)?.stock ?? 0}`).join(" • ") : `Qty: ${product.stock}`}</td><td className="px-5 py-4"><button onClick={() => handleToggleActive(product)} className={`text-xs px-2.5 py-1 rounded-full ${product.active ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}>{product.active ? "Active" : "Hidden"}</button></td><td className="px-5 py-4 text-right"><button onClick={() => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes), customizationOptions: (product.customizationOptions ?? defaultCustomizationOptions()) as CustomizationOptions }); setShowForm(true); }} className="text-sm text-navy mr-3">Edit</button><button onClick={() => handleDelete(product.id)} className="text-sm text-red">Delete</button></td></tr>)}</tbody></table></div>}
   </div>;
 }

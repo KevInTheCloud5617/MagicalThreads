@@ -4,6 +4,8 @@ import "./globals.css";
 
 import { APP_VERSION } from "../lib/version";
 import Sidebar from "@/components/Sidebar";
+import AdminFlagsProvider from "@/components/AdminFlagsProvider";
+import { getServerFlagSnapshot } from "@/lib/feature-flags";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -19,21 +21,24 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const flags = await getServerFlagSnapshot();
   return (
     <html lang="en">
       <body className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased min-h-screen`}>
-        <Sidebar />
-        <main className="pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0 md:ml-64 min-h-screen">
-          {children}
-        </main>
-        <div className="fixed bottom-2 right-2 z-50 pointer-events-none text-[11px] opacity-35 text-navy/80 select-none">
-          v{APP_VERSION}
-        </div>
+        <AdminFlagsProvider flags={flags}>
+          <Sidebar />
+          <main className="pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0 md:ml-64 min-h-screen">
+            {children}
+          </main>
+          <div className="fixed bottom-2 right-2 z-50 pointer-events-none text-[11px] opacity-35 text-navy/80 select-none">
+            v{APP_VERSION}
+          </div>
+        </AdminFlagsProvider>
       </body>
     </html>
   );

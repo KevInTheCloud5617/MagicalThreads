@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import type { Customization } from "@/lib/customization";
 
 export const MAX_CART_ITEMS = 5;
 export const BULK_ORDER_MESSAGE = "For orders of more than 5 items, please email us at meg@magicalthreadswithmeg.com for bulk pricing!";
@@ -15,6 +16,7 @@ export interface CartItem {
   availableStock?: number;
   image?: string;
   category?: string;
+  customization?: Customization;
 }
 
 interface CartContextType {
@@ -31,6 +33,15 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | null>(null);
+
+function hashCustomization(c?: Customization): string {
+  if (!c) return "";
+  // Stable short hash of the relevant fields
+  const s = JSON.stringify([c.text, c.color?.name, c.font, c.placement]);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -50,7 +61,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items, loaded]);
 
   const addItem = useCallback((item: Omit<CartItem, "quantity" | "key">) => {
-    const itemKey = `${item.id}::${item.size}`;
+    const custHash = hashCustomization(item.customization);
+    const itemKey = `${item.id}::${item.size}${custHash ? `::${custHash}` : ""}`;
     setItems((prev) => {
       const currentTotal = prev.reduce((sum, i) => sum + i.quantity, 0);
       if (currentTotal >= MAX_CART_ITEMS) {
@@ -99,7 +111,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => {
       let changed = false;
       const next = prev.map((item) => {
-        const availableStock = byKey.get(item.key);
+        const availableStock = byKey.get(`${item.id}::${item.size}`);
         if (typeof availableStock !== "number") return item;
         const nextQuantity = Math.min(item.quantity, availableStock);
         if (item.availableStock === availableStock && item.quantity === nextQuantity) return item;
@@ -117,7 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clearCart = useCallback(() => { setItems([]); localStorage.removeItem("mt_cart"); }, []);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const totalPrice = items.reduce((sum, i) => sum + (i.price + (i.customization?.upcharge ?? 0)) * i.quantity, 0);
 
   return (
     <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, syncItemStocks, clearCart, totalItems, totalPrice, isCartOpen, setIsCartOpen }}>

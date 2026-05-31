@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { sanitize } from "@/lib/sanitize";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { syncProductToStripe } from "@/lib/stripe-product-sync";
+import { parseCustomizationOptions, serializeCustomizationOptions } from "@/lib/customization";
 
 const ALLOWED_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type AllowedSize = (typeof ALLOWED_SIZES)[number];
@@ -51,7 +52,8 @@ function normalizeAdditionalImages(input: unknown): Array<{ url: string; alt: st
 export async function GET() {
   if (!(await isAdminAuthenticated())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const products = await prisma.product.findMany({ include: PRODUCT_INCLUDE, orderBy: { createdAt: "desc" } });
-  return NextResponse.json(products);
+  const decorated = products.map((p) => ({ ...p, customizationOptions: parseCustomizationOptions(p.customizationOptions) }));
+  return NextResponse.json(decorated);
 }
 
 export async function POST(request: Request) {
@@ -73,6 +75,7 @@ export async function POST(request: Request) {
     const name = sanitize(data.name);
     const slug = data.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = data.sku || `MT-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const customizationOptions = serializeCustomizationOptions(parseCustomizationOptions(data.customizationOptions));
 
     const createdProduct = await prisma.product.create({
       data: {
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
         active: Boolean(data.active ?? true),
         stock,
         hasSize: Boolean(data.hasSize),
+        customizationOptions,
         sizes: { create: ALLOWED_SIZES.map((size) => ({ size, stock: Boolean(data.hasSize) ? sizes[size] : 0 })) },
         images: additionalImages.length
           ? { create: additionalImages.map((img) => ({ url: img.url, alt: img.alt, sortOrder: img.sortOrder })) }
@@ -129,6 +133,9 @@ export async function PUT(request: Request) {
   const additionalImages = normalizeAdditionalImages(updateData.additionalImages);
   delete updateData.sizes;
   delete updateData.additionalImages;
+  if (Object.prototype.hasOwnProperty.call(updateData, "customizationOptions")) {
+    updateData.customizationOptions = serializeCustomizationOptions(parseCustomizationOptions(updateData.customizationOptions));
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.product.update({ where: { id }, data: updateData });
