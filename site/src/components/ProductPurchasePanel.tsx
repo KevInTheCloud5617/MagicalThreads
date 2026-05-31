@@ -105,6 +105,30 @@ export default function ProductPurchasePanel({ product }: { product: ProductInpu
               ))}
             </div>
           </div>
+
+          {(() => {
+            const fontFamily = ({
+              Script: 'var(--font-script), "Brush Script MT", cursive',
+              Block: 'var(--font-block), "Arial Black", Impact, sans-serif',
+              Varsity: 'var(--font-varsity), Impact, "Arial Black", sans-serif',
+              Cursive: 'var(--font-cursive), "Snell Roundhand", cursive',
+              Serif: 'var(--font-playfair), Georgia, "Times New Roman", serif',
+            } as Record<string, string>)[font] || 'inherit';
+            const previewText = text.trim() || "Preview";
+            return (
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-text-muted mb-2">Preview</label>
+                <div className="rounded-xl border border-blue-pale bg-white px-4 py-6 flex items-center justify-center min-h-[80px]">
+                  <span
+                    style={{ fontFamily, color: color?.hex ?? "#0f172a" }}
+                    className={`text-3xl leading-tight break-words text-center ${text.trim() ? "" : "opacity-30"}`}
+                  >
+                    {previewText}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

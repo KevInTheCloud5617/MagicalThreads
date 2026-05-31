@@ -119,12 +119,27 @@ export default function CartDrawer() {
                   <h3 className="font-semibold text-navy text-sm truncate">{item.name}</h3>
                   <p className="text-gold font-semibold text-sm">${item.price.toFixed(2)}</p>
                   {item.size !== "ONE_SIZE" && <p className="text-text-muted text-xs">Size: {item.size}</p>}
-                  {item.customization && (
-                    <p className="text-text-muted text-[11px] leading-snug">
-                      Personalization: &lsquo;{item.customization.text}&rsquo; — {item.customization.color.name} {item.customization.font}, {item.customization.placement}
-                      {item.customization.upcharge > 0 ? ` (+$${item.customization.upcharge.toFixed(2)})` : ""}
-                    </p>
-                  )}
+                  {item.customization && (() => {
+                    const fontFamily = ({
+                      Script: 'var(--font-script), "Brush Script MT", cursive',
+                      Block: 'var(--font-block), "Arial Black", Impact, sans-serif',
+                      Varsity: 'var(--font-varsity), Impact, "Arial Black", sans-serif',
+                      Cursive: 'var(--font-cursive), "Snell Roundhand", cursive',
+                      Serif: 'var(--font-playfair), Georgia, "Times New Roman", serif',
+                    } as Record<string, string>)[item.customization.font] || 'inherit';
+                    return (
+                      <div className="mt-0.5 text-[11px] leading-snug">
+                        <div className="text-text-muted">
+                          Personalization (
+                          <span style={{ fontFamily, color: item.customization.color.hex }} className="text-base align-middle">
+                            {item.customization.text}
+                          </span>
+                          ) — {item.customization.color.name} {item.customization.font}, {item.customization.placement}
+                          {item.customization.upcharge > 0 ? ` (+$${item.customization.upcharge.toFixed(2)})` : ""}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center gap-2 mt-1">
                     <button onClick={() => updateQuantity(item.key, item.quantity - 1)} className="w-6 h-6 rounded bg-navy/10 text-navy text-xs flex items-center justify-center hover:bg-navy/20">−</button>
                     <span className="text-sm text-navy">{item.quantity}</span>
