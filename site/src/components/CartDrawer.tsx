@@ -117,7 +117,7 @@ export default function CartDrawer() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-navy text-sm truncate">{item.name}</h3>
-                  <p className="text-gold font-semibold text-sm">${(item.price + (item.customization?.upcharge ?? 0)).toFixed(2)}</p>
+                  <p className="text-gold font-semibold text-sm">${item.price.toFixed(2)}</p>
                   {item.size !== "ONE_SIZE" && <p className="text-text-muted text-xs">Size: {item.size}</p>}
                   {item.customization && (
                     <p className="text-text-muted text-[11px] leading-snug">
@@ -154,12 +154,21 @@ export default function CartDrawer() {
           )}
         </div>
 
-        {items.length > 0 && (
+        {items.length > 0 && (() => {
+          const personalizationTotal = items.reduce((sum, i) => sum + (i.customization?.upcharge ?? 0) * i.quantity, 0);
+          const baseSubtotal = totalPrice - personalizationTotal;
+          return (
           <div className="p-6 border-t border-navy/10 space-y-3">
             <div className="flex justify-between text-sm text-text-muted">
               <span>Subtotal</span>
-              <span>${totalPrice.toFixed(2)}</span>
+              <span>${baseSubtotal.toFixed(2)}</span>
             </div>
+            {personalizationTotal > 0 && (
+              <div className="flex justify-between text-sm text-text-muted">
+                <span>Personalization</span>
+                <span>+${personalizationTotal.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm text-text-muted">
               <span>Shipping</span>
               <span>{shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}</span>
@@ -180,7 +189,8 @@ export default function CartDrawer() {
               Clear Cart
             </button>
           </div>
-        )}
+          );
+        })()}
       </div>
     </>
   );
