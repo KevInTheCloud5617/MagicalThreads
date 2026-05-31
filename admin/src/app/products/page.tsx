@@ -6,7 +6,9 @@ import {
   CUSTOMIZATION_TYPES,
   FONT_PRESETS,
   PLACEMENT_PRESETS,
+  DEFAULT_PRESETS,
   type CustomizationOptions,
+  type PersonalizationPresets,
 } from "@/lib/customization";
 
 const SIZE_OPTIONS = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
@@ -56,6 +58,7 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
+  const [presets, setPresets] = useState<PersonalizationPresets>(DEFAULT_PRESETS);
 
   const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes(), customizationOptions: defaultCustomizationOptions() };
   const [uploading, setUploading] = useState(false);
@@ -63,6 +66,14 @@ export default function ProductsPage() {
   const [form, setForm] = useState(emptyProduct);
 
   useEffect(() => { fetchProducts(); }, []);
+
+  useEffect(() => {
+    if (!embroideryOn) return;
+    fetch("/api/settings/personalization")
+      .then((r) => r.json())
+      .then((data) => { if (data && !data.error) setPresets({ ...DEFAULT_PRESETS, ...data }); })
+      .catch(() => {});
+  }, [embroideryOn]);
 
   const mapSizes = (sizes?: Array<{ size: string; stock: number }>): SizesMap => {
     const mapped = emptySizes();
@@ -141,7 +152,7 @@ export default function ProductsPage() {
   const filtered = filter ? products.filter((p) => p.category === filter) : products;
 
   return <div className="p-4 md:p-8">
-    <div className="flex items-center justify-between mb-8"><div><h1 className="text-2xl font-bold text-navy">Products</h1></div><button onClick={() => { setEditing(null); setForm(emptyProduct); setShowForm(true); }} className="bg-gold text-navy font-semibold px-5 py-2.5 rounded-lg text-sm">+ Add Product</button></div>
+    <div className="flex items-center justify-between mb-8"><div><h1 className="text-2xl font-bold text-navy">Products</h1></div><button onClick={() => { setEditing(null); setForm({ ...emptyProduct, customizationOptions: { ...defaultCustomizationOptions(), maxChars: presets.defaultMaxChars, upcharge: presets.defaultUpcharge } }); setShowForm(true); }} className="bg-gold text-navy font-semibold px-5 py-2.5 rounded-lg text-sm">+ Add Product</button></div>
 
     <div className="flex gap-2 mb-6 flex-wrap"><button onClick={() => setFilter(null)} className={`px-4 py-2 rounded-lg text-sm ${filter === null ? "bg-navy text-white" : "bg-white border"}`}>All ({products.length})</button>{CATEGORIES.map((cat) => <button key={cat.slug} onClick={() => setFilter(cat.slug)} className={`px-4 py-2 rounded-lg text-sm ${filter === cat.slug ? "bg-navy text-white" : "bg-white border"}`}>{cat.emoji} {cat.name}</button>)}</div>
 
@@ -251,6 +262,25 @@ export default function ProductsPage() {
         {embroideryOn && (() => {
           const co = form.customizationOptions;
           const setCO = (partial: Partial<CustomizationOptions>) => setForm((prev) => ({ ...prev, customizationOptions: { ...prev.customizationOptions, ...partial } }));
+          const fontFamilyMap: Record<string, string> = {
+            Script: 'var(--font-script), "Brush Script MT", cursive',
+            Block: 'var(--font-block), "Arial Black", Impact, sans-serif',
+            Varsity: 'var(--font-varsity), Impact, "Arial Black", sans-serif',
+            Cursive: 'var(--font-cursive), "Snell Roundhand", cursive',
+            Serif: 'var(--font-serif-display), Georgia, "Times New Roman", serif',
+          };
+          const overrideToggle = (label: string, on: boolean, onChange: (next: boolean) => void) => (
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold">{label}</label>
+              <button
+                type="button"
+                onClick={() => onChange(!on)}
+                className={`text-[11px] px-2 py-0.5 rounded border ${on ? "bg-gold/20 border-gold text-navy" : "text-gray-600"}`}
+              >
+                {on ? "Customize for this product" : "Using global"}
+              </button>
+            </div>
+          );
           return (
             <details className="border rounded-lg p-3" open={co.enabled}>
               <summary className="text-sm font-semibold cursor-pointer">Personalization</summary>
@@ -286,93 +316,104 @@ export default function ProductsPage() {
                         onChange={(e) => setCO({ maxChars: Math.max(1, Math.min(50, parseInt(e.target.value || "0", 10) || 1)) })}
                         className="w-24 px-2 py-1 rounded border text-sm"
                       />
+                      <p className="text-[11px] text-gray-500 mt-1">Global default: {presets.defaultMaxChars}</p>
                     </div>
+
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-semibold">Colors</label>
-                        <button
-                          type="button"
-                          className="text-xs px-2 py-0.5 rounded border"
-                          onClick={() => setCO({ colors: [...co.colors, { name: "", hex: "#000000" }] })}
-                        >
-                          + Add Color
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {co.colors.map((c, idx) => (
-                          <div key={idx} className="flex gap-2 items-center">
-                            <input
-                              type="text"
-                              value={c.name}
-                              placeholder="Color name"
-                              onChange={(e) => {
-                                const next = [...co.colors];
-                                next[idx] = { ...next[idx], name: e.target.value };
-                                setCO({ colors: next });
-                              }}
-                              className="flex-1 px-2 py-1 rounded border text-sm"
-                            />
-                            <input
-                              type="color"
-                              value={c.hex}
-                              onChange={(e) => {
-                                const next = [...co.colors];
-                                next[idx] = { ...next[idx], hex: e.target.value };
-                                setCO({ colors: next });
-                              }}
-                              className="w-10 h-8 border rounded"
-                            />
-                            <button
-                              type="button"
-                              className="text-xs px-2 py-1 rounded border text-red"
-                              onClick={() => setCO({ colors: co.colors.filter((_, i) => i !== idx) })}
-                            >
-                              Remove
-                            </button>
+                      {overrideToggle("Colors", Boolean(co.colorsOverride), (next) => {
+                        if (next) setCO({ colorsOverride: true, colors: co.colors.length ? co.colors : presets.colors });
+                        else setCO({ colorsOverride: false });
+                      })}
+                      {co.colorsOverride ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-end">
+                            <button type="button" className="text-xs px-2 py-0.5 rounded border" onClick={() => setCO({ colors: [...co.colors, { name: "", hex: "#000000" }] })}>+ Add Color</button>
                           </div>
-                        ))}
-                        {co.colors.length === 0 && <p className="text-xs text-gray-500">No colors yet.</p>}
-                      </div>
+                          {co.colors.map((c, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                              <input type="text" value={c.name} placeholder="Color name" onChange={(e) => { const next = [...co.colors]; next[idx] = { ...next[idx], name: e.target.value }; setCO({ colors: next }); }} className="flex-1 px-2 py-1 rounded border text-sm" />
+                              <input type="color" value={c.hex} onChange={(e) => { const next = [...co.colors]; next[idx] = { ...next[idx], hex: e.target.value }; setCO({ colors: next }); }} className="w-10 h-8 border rounded" />
+                              <button type="button" className="text-xs px-2 py-1 rounded border text-red" onClick={() => setCO({ colors: co.colors.filter((_, i) => i !== idx) })}>Remove</button>
+                            </div>
+                          ))}
+                          {co.colors.length === 0 && <p className="text-xs text-gray-500">No colors yet.</p>}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <div className="flex flex-wrap gap-2">
+                            {presets.colors.length === 0 && <span className="text-gray-500">No global colors configured.</span>}
+                            {presets.colors.map((c) => (
+                              <span key={c.name} className="inline-flex items-center gap-1 px-2 py-0.5 border rounded">
+                                <span className="inline-block w-3 h-3 rounded-full border" style={{ background: c.hex }} />
+                                {c.name}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-gray-500">Managed in Settings → Personalization</p>
+                        </div>
+                      )}
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Fonts</label>
-                      <div className="flex flex-wrap gap-3">
-                        {FONT_PRESETS.map((f) => {
-                          const fontFamily = ({
-                            Script: 'var(--font-script), "Brush Script MT", cursive',
-                            Block: 'var(--font-block), "Arial Black", Impact, sans-serif',
-                            Varsity: 'var(--font-varsity), Impact, "Arial Black", sans-serif',
-                            Cursive: 'var(--font-cursive), "Snell Roundhand", cursive',
-                            Serif: 'var(--font-serif-display), Georgia, "Times New Roman", serif',
-                          } as Record<string, string>)[f];
-                          return (
+                      {overrideToggle("Fonts", Boolean(co.fontsOverride), (next) => {
+                        if (next) setCO({ fontsOverride: true, fonts: co.fonts.length ? co.fonts : presets.fonts });
+                        else setCO({ fontsOverride: false });
+                      })}
+                      {co.fontsOverride ? (
+                        <div className="flex flex-wrap gap-3">
+                          {FONT_PRESETS.map((f) => (
                             <label key={f} className="text-sm flex items-center gap-1">
                               <input
                                 type="checkbox"
                                 checked={co.fonts.includes(f)}
                                 onChange={(e) => setCO({ fonts: e.target.checked ? [...co.fonts, f] : co.fonts.filter((x) => x !== f) })}
                               />
-                              <span style={{ fontFamily }}>{f}</span>
+                              <span style={{ fontFamily: fontFamilyMap[f] }}>{f}</span>
                             </label>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-600">
+                          <div className="flex flex-wrap gap-2">
+                            {presets.fonts.length === 0 && <span className="text-gray-500">No global fonts configured.</span>}
+                            {presets.fonts.map((f) => (
+                              <span key={f} className="px-2 py-0.5 border rounded" style={{ fontFamily: fontFamilyMap[f] }}>{f}</span>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-1">Managed in Settings → Personalization</p>
+                        </div>
+                      )}
                     </div>
+
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Placements</label>
-                      <div className="flex flex-wrap gap-3">
-                        {PLACEMENT_PRESETS.map((p) => (
-                          <label key={p} className="text-xs flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={co.placements.includes(p)}
-                              onChange={(e) => setCO({ placements: e.target.checked ? [...co.placements, p] : co.placements.filter((x) => x !== p) })}
-                            />
-                            {p}
-                          </label>
-                        ))}
-                      </div>
+                      {overrideToggle("Placements", Boolean(co.placementsOverride), (next) => {
+                        if (next) setCO({ placementsOverride: true, placements: co.placements.length ? co.placements : presets.placements });
+                        else setCO({ placementsOverride: false });
+                      })}
+                      {co.placementsOverride ? (
+                        <div className="flex flex-wrap gap-3">
+                          {PLACEMENT_PRESETS.map((p) => (
+                            <label key={p} className="text-xs flex items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={co.placements.includes(p)}
+                                onChange={(e) => setCO({ placements: e.target.checked ? [...co.placements, p] : co.placements.filter((x) => x !== p) })}
+                              />
+                              {p}
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-600">
+                          <div className="flex flex-wrap gap-2">
+                            {presets.placements.length === 0 && <span className="text-gray-500">No global placements configured.</span>}
+                            {presets.placements.map((p) => <span key={p} className="px-2 py-0.5 border rounded">{p}</span>)}
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-1">Managed in Settings → Personalization</p>
+                        </div>
+                      )}
                     </div>
+
                     <div>
                       <label className="block text-xs font-semibold mb-1">Upcharge ($)</label>
                       <input
@@ -383,6 +424,7 @@ export default function ProductsPage() {
                         onChange={(e) => setCO({ upcharge: Math.max(0, parseFloat(e.target.value || "0") || 0) })}
                         className="w-28 px-2 py-1 rounded border text-sm"
                       />
+                      <p className="text-[11px] text-gray-500 mt-1">Global default: ${presets.defaultUpcharge.toFixed(2)}</p>
                     </div>
                   </div>
                 )}
