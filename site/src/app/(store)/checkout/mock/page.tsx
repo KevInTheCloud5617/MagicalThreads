@@ -24,6 +24,7 @@ export default function MockCheckoutPage() {
             id: i.id,
             quantity: i.quantity,
             ...(i.size !== "ONE_SIZE" ? { size: i.size } : {}),
+            ...(i.color ? { color: i.color } : {}),
           })),
         }),
       });
@@ -54,7 +55,7 @@ export default function MockCheckoutPage() {
         ) : (
           items.map((item) => (
             <div key={item.key} className="flex justify-between text-sm">
-              <span>{item.name} {item.size !== "ONE_SIZE" ? `(${item.size})` : ""} × {item.quantity}</span>
+              <span>{item.name} {item.size !== "ONE_SIZE" ? `(${item.size})` : ""}{item.color ? ` — ${item.color}` : ""} × {item.quantity}</span>
               <span>${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))

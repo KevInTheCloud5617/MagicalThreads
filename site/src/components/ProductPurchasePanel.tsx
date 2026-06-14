@@ -6,21 +6,28 @@ import { useFeature } from "@/lib/useFeature";
 import type { Customization, CustomizationOptions, CustomizationColor } from "@/lib/customization";
 
 type ProductSize = { size: string; stock: number };
+type ProductColor = { name: string; hex: string; sortOrder: number };
 type ProductInput = {
   id: string;
   name: string;
   price: number;
   stock?: number;
   hasSize?: boolean;
+  hasColor?: boolean;
   category?: string;
   image?: string;
   sizes?: ProductSize[];
+  colors?: ProductColor[];
   customizationOptions?: CustomizationOptions | null;
 };
 
 export default function ProductPurchasePanel({ product }: { product: ProductInput }) {
   const embroideryOn = useFeature("embroidery");
   const opts = product.customizationOptions;
+  const variantColors = product.colors ?? [];
+  const hasVariantColors = Boolean(product.hasColor) && variantColors.length > 0;
+  const [variantColor, setVariantColor] = useState<string>(hasVariantColors ? variantColors[0].name : "");
+
   const showPersonalize = embroideryOn && opts?.enabled && opts.colors.length > 0 && opts.fonts.length > 0 && opts.placements.length > 0;
 
   const [text, setText] = useState("");
@@ -35,6 +42,31 @@ export default function ProductPurchasePanel({ product }: { product: ProductInpu
 
   return (
     <div className="space-y-4">
+      {hasVariantColors && (
+        <div>
+          <label className="block text-xs uppercase tracking-wider text-text-muted mb-2">Color</label>
+          <select
+            value={variantColor}
+            onChange={(e) => setVariantColor(e.target.value)}
+            className="w-full px-3 py-3 rounded-full border border-blue-pale bg-white text-navy text-sm focus:outline-none focus:ring-2 focus:ring-gold/50"
+          >
+            {variantColors.map((c) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+          {(() => {
+            const swatch = variantColors.find((c) => c.name === variantColor);
+            if (!swatch) return null;
+            return (
+              <div className="flex items-center gap-2 mt-2 text-[11px] text-text-muted">
+                <span className="inline-block w-4 h-4 rounded-full border border-blue-pale" style={{ backgroundColor: swatch.hex }} />
+                Selected: {swatch.name}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {showPersonalize && (
         <div className="border border-blue-pale rounded-2xl p-4 bg-white space-y-3">
           <div className="flex items-baseline justify-between">
@@ -136,6 +168,8 @@ export default function ProductPurchasePanel({ product }: { product: ProductInpu
         product={product}
         customization={customization}
         customizationRequired={Boolean(showPersonalize)}
+        variantColor={hasVariantColors ? variantColor : undefined}
+        variantColorRequired={hasVariantColors}
       />
     </div>
   );

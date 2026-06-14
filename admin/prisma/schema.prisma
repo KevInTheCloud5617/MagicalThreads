@@ -21,6 +21,7 @@ model Product {
   stripePriceId   String?
   stock       Int      @default(0)
   hasSize     Boolean  @default(false)
+  hasColor    Boolean  @default(false)
   active      Boolean  @default(true)
   isExample   Boolean  @default(false)
   customizationOptions String?  @db.NVarChar(Max)
@@ -30,6 +31,7 @@ model Product {
   orderItems OrderItem[]
   sizes      ProductSize[]
   images     ProductImage[]
+  colors     ProductColor[]
 }
 
 model Order {
@@ -64,6 +66,7 @@ model OrderItem {
   quantity  Int     @default(1)
   price     Float
   size      String?
+  color     String?
   customization String?  @db.NVarChar(Max)
 
   order   Order    @relation(fields: [orderId], references: [id])
@@ -98,6 +101,22 @@ model ProductImage {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
+  @@index([productId])
+  @@index([productId, sortOrder])
+}
+
+model ProductColor {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  hex       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name])
   @@index([productId])
   @@index([productId, sortOrder])
 }

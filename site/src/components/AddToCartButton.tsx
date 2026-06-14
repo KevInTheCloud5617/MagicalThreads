@@ -6,7 +6,7 @@ import type { Customization } from "@/lib/customization";
 
 type ProductSize = { size: string; stock: number };
 
-export default function AddToCartButton({ product, customization, customizationRequired, onRequireCustomization }: { product: { id: string; name: string; price: number; stock?: number; hasSize?: boolean; category?: string; image?: string; sizes?: ProductSize[] }; customization?: Customization | null; customizationRequired?: boolean; onRequireCustomization?: () => void }) {
+export default function AddToCartButton({ product, customization, customizationRequired, onRequireCustomization, variantColor, variantColorRequired }: { product: { id: string; name: string; price: number; stock?: number; hasSize?: boolean; category?: string; image?: string; sizes?: ProductSize[] }; customization?: Customization | null; customizationRequired?: boolean; onRequireCustomization?: () => void; variantColor?: string; variantColorRequired?: boolean }) {
   const { addItem, items } = useCart();
 
   const hasSize = Boolean(product.hasSize);
@@ -18,14 +18,18 @@ export default function AddToCartButton({ product, customization, customizationR
 
   const selectedSizeStock = availableSizes.find((s) => s.size === selectedSize)?.stock ?? 0;
   const stock = product.stock ?? 0;
-  const cartQty = items.find((i) => i.id === product.id && i.size === (hasSize ? selectedSize : "ONE_SIZE"))?.quantity ?? 0;
+  const cartLookupSize = hasSize ? selectedSize : "ONE_SIZE";
+  const cartQty = items
+    .filter((i) => i.id === product.id && i.size === cartLookupSize && (i.color ?? null) === (variantColor ?? null))
+    .reduce((sum, i) => sum + i.quantity, 0);
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 
   const outOfStock = hasSize ? availableSizes.length === 0 : stock <= 0;
   const noSizeSelected = hasSize ? !selectedSize : false;
+  const noColorSelected = Boolean(variantColorRequired) && !variantColor;
   const atStockLimit = hasSize ? (selectedSize ? cartQty >= selectedSizeStock : false) : cartQty >= stock;
   const atCartLimit = totalItems >= MAX_CART_ITEMS;
-  const disabled = outOfStock || noSizeSelected || atStockLimit || atCartLimit;
+  const disabled = outOfStock || noSizeSelected || noColorSelected || atStockLimit || atCartLimit;
 
   const handleClick = () => {
     if (atCartLimit) {
@@ -34,6 +38,10 @@ export default function AddToCartButton({ product, customization, customizationR
     }
     if (hasSize && !selectedSize) {
       alert("Please select a size");
+      return;
+    }
+    if (variantColorRequired && !variantColor) {
+      alert("Please select a color");
       return;
     }
 
@@ -57,6 +65,7 @@ export default function AddToCartButton({ product, customization, customizationR
       availableStock: availableForSelection,
       category: product.category,
       image: product.image,
+      ...(variantColor ? { color: variantColor } : {}),
       ...(customization ? { customization } : {}),
     });
   };

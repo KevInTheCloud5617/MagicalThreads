@@ -16,6 +16,7 @@ export interface CartItem {
   availableStock?: number;
   image?: string;
   category?: string;
+  color?: string;
   customization?: Customization;
 }
 
@@ -62,7 +63,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback((item: Omit<CartItem, "quantity" | "key">) => {
     const custHash = hashCustomization(item.customization);
-    const itemKey = `${item.id}::${item.size}${custHash ? `::${custHash}` : ""}`;
+    const colorPart = item.color ? `::c=${item.color}` : "";
+    const itemKey = `${item.id}::${item.size}${colorPart}${custHash ? `::${custHash}` : ""}`;
     setItems((prev) => {
       const currentTotal = prev.reduce((sum, i) => sum + i.quantity, 0);
       if (currentTotal >= MAX_CART_ITEMS) {

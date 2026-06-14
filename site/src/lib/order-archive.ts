@@ -8,6 +8,7 @@ export type ArchivedOrderItem = {
   productId: string | null;
   productName: string;
   size: string | null;
+  color: string | null;
   quantity: number;
   price: number;
 };
@@ -55,7 +56,7 @@ export function archivedOrdersToCsv(orders: ArchivedOrder[]) {
 
   const lines = orders.map((order) => {
     const itemsText = order.items
-      .map((item) => `${item.productName} (${item.size || "ONE_SIZE"}) x${item.quantity} @ $${item.price.toFixed(2)}`)
+      .map((item) => `${item.productName}${item.color ? ` [${item.color}]` : ""} (${item.size || "ONE_SIZE"}) x${item.quantity} @ $${item.price.toFixed(2)}`)
       .join("; ");
 
     return [

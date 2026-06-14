@@ -9,15 +9,24 @@ import { parseCustomizationOptions, serializeCustomizationOptions } from "@/lib/
 const ALLOWED_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type AllowedSize = (typeof ALLOWED_SIZES)[number];
 
+const COLOR_HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
 type AdditionalImageInput = {
   url: string;
   alt?: string;
   sortOrder?: number;
 };
 
+type ColorInput = {
+  name: string;
+  hex: string;
+  sortOrder?: number;
+};
+
 const PRODUCT_INCLUDE = {
   sizes: true,
   images: { orderBy: { sortOrder: "asc" as const } },
+  colors: { orderBy: { sortOrder: "asc" as const } },
 } as const;
 
 function normalizeSizes(input: unknown): Record<AllowedSize, number> {
@@ -49,6 +58,28 @@ function normalizeAdditionalImages(input: unknown): Array<{ url: string; alt: st
     .map((img, index) => ({ ...img, sortOrder: index }));
 }
 
+function normalizeColors(input: unknown): Array<{ name: string; hex: string; sortOrder: number }> {
+  if (!Array.isArray(input)) return [];
+
+  const seenNames = new Set<string>();
+  return input
+    .map((c, index) => {
+      if (!c || typeof c !== "object") return null;
+      const maybe = c as ColorInput;
+      const name = typeof maybe.name === "string" ? sanitize(maybe.name.trim()).slice(0, 40) : "";
+      const hex = typeof maybe.hex === "string" ? maybe.hex.trim() : "";
+      if (!name || !COLOR_HEX_RE.test(hex)) return null;
+      const lowered = name.toLowerCase();
+      if (seenNames.has(lowered)) return null;
+      seenNames.add(lowered);
+      const sortOrder = Number.isInteger(maybe.sortOrder) ? Number(maybe.sortOrder) : index;
+      return { name, hex, sortOrder: sortOrder >= 0 ? sortOrder : index };
+    })
+    .filter((c): c is { name: string; hex: string; sortOrder: number } => Boolean(c))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((c, index) => ({ ...c, sortOrder: index }));
+}
+
 export async function GET() {
   if (!(await isAdminAuthenticated())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const products = await prisma.product.findMany({ include: PRODUCT_INCLUDE, orderBy: { createdAt: "desc" } });
@@ -72,6 +103,11 @@ export async function POST(request: Request) {
 
     const sizes = normalizeSizes(data.sizes);
     const additionalImages = normalizeAdditionalImages(data.additionalImages);
+    const hasColor = Boolean(data.hasColor);
+    const colors = hasColor ? normalizeColors(data.colors) : [];
+    if (hasColor && colors.length === 0) {
+      return NextResponse.json({ error: "At least one color is required when colors are enabled" }, { status: 400 });
+    }
     const name = sanitize(data.name);
     const slug = data.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const sku = data.sku || `MT-${randomUUID().slice(0, 8).toUpperCase()}`;
@@ -90,10 +126,14 @@ export async function POST(request: Request) {
         active: Boolean(data.active ?? true),
         stock,
         hasSize: Boolean(data.hasSize),
+        hasColor,
         customizationOptions,
         sizes: { create: ALLOWED_SIZES.map((size) => ({ size, stock: Boolean(data.hasSize) ? sizes[size] : 0 })) },
         images: additionalImages.length
           ? { create: additionalImages.map((img) => ({ url: img.url, alt: img.alt, sortOrder: img.sortOrder })) }
+          : undefined,
+        colors: colors.length
+          ? { create: colors.map((c) => ({ name: c.name, hex: c.hex, sortOrder: c.sortOrder })) }
           : undefined,
       },
       include: PRODUCT_INCLUDE,
@@ -131,8 +171,22 @@ export async function PUT(request: Request) {
   const sizes = normalizeSizes(updateData.sizes);
   const hasSize = updateData.hasSize === undefined ? undefined : Boolean(updateData.hasSize);
   const additionalImages = normalizeAdditionalImages(updateData.additionalImages);
+  const hasColorProvided = Object.prototype.hasOwnProperty.call(updateData, "hasColor");
+  const hasColor = hasColorProvided ? Boolean(updateData.hasColor) : undefined;
+  const colorsProvided = Object.prototype.hasOwnProperty.call(updateData, "colors");
+  const colors = colorsProvided ? normalizeColors(updateData.colors) : null;
+  if (hasColor === true && colors !== null && colors.length === 0) {
+    return NextResponse.json({ error: "At least one color is required when colors are enabled" }, { status: 400 });
+  }
   delete updateData.sizes;
   delete updateData.additionalImages;
+  delete updateData.colors;
+  // Strip Prisma relation fields that may come back via spread of a fetched product
+  delete updateData.images;
+  delete updateData.productSizes;
+  delete updateData.orderItems;
+  delete updateData.createdAt;
+  delete updateData.updatedAt;
   if (Object.prototype.hasOwnProperty.call(updateData, "customizationOptions")) {
     updateData.customizationOptions = serializeCustomizationOptions(parseCustomizationOptions(updateData.customizationOptions));
   }
@@ -154,6 +208,19 @@ export async function PUT(request: Request) {
       await tx.productImage.createMany({
         data: additionalImages.map((img) => ({ productId: id, url: img.url, alt: img.alt, sortOrder: img.sortOrder })),
       });
+    }
+
+    // Colors: only touch if caller sent the field. If hasColor is being
+    // turned off, also clear out the rows so a future toggle-back starts clean.
+    if (hasColor === false) {
+      await tx.productColor.deleteMany({ where: { productId: id } });
+    } else if (colors !== null) {
+      await tx.productColor.deleteMany({ where: { productId: id } });
+      if (colors.length) {
+        await tx.productColor.createMany({
+          data: colors.map((c) => ({ productId: id, name: c.name, hex: c.hex, sortOrder: c.sortOrder })),
+        });
+      }
     }
 
     return tx.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
@@ -178,6 +245,7 @@ export async function DELETE(request: Request) {
   await prisma.$transaction(async (tx) => {
     await tx.productImage.deleteMany({ where: { productId: id } });
     await tx.productSize.deleteMany({ where: { productId: id } });
+    await tx.productColor.deleteMany({ where: { productId: id } });
     await tx.orderItem.deleteMany({ where: { productId: id } });
     await tx.product.delete({ where: { id } });
   });
