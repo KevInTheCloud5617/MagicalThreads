@@ -9,17 +9,19 @@
 -- All changes are additive — no destructive operations, no data loss.
 -- Existing products are unaffected (hasColor defaults to false).
 
+BEGIN TRY
+
+BEGIN TRAN;
+
 -- ---------------------------------------------------------------------
 -- 1. OrderItem.color
 -- ---------------------------------------------------------------------
 ALTER TABLE [dbo].[OrderItem] ADD [color] NVARCHAR(1000) NULL;
-GO
 
 -- ---------------------------------------------------------------------
 -- 2. Product.hasColor
 -- ---------------------------------------------------------------------
 ALTER TABLE [dbo].[Product] ADD [hasColor] BIT NOT NULL CONSTRAINT [Product_hasColor_df] DEFAULT 0;
-GO
 
 -- ---------------------------------------------------------------------
 -- 3. ProductColor table
@@ -32,24 +34,30 @@ CREATE TABLE [dbo].[ProductColor] (
     [sortOrder] INT            NOT NULL CONSTRAINT [ProductColor_sortOrder_df] DEFAULT 0,
     [createdAt] DATETIME2      NOT NULL CONSTRAINT [ProductColor_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2      NOT NULL,
-    CONSTRAINT [ProductColor_pkey] PRIMARY KEY CLUSTERED ([id])
+    CONSTRAINT [ProductColor_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [ProductColor_productId_name_key] UNIQUE NONCLUSTERED ([productId], [name])
 );
-GO
-
-CREATE UNIQUE NONCLUSTERED INDEX [ProductColor_productId_name_key]
-    ON [dbo].[ProductColor]([productId], [name]);
-GO
 
 CREATE NONCLUSTERED INDEX [ProductColor_productId_idx]
     ON [dbo].[ProductColor]([productId]);
-GO
 
 CREATE NONCLUSTERED INDEX [ProductColor_productId_sortOrder_idx]
     ON [dbo].[ProductColor]([productId], [sortOrder]);
-GO
 
 ALTER TABLE [dbo].[ProductColor]
     ADD CONSTRAINT [ProductColor_productId_fkey]
     FOREIGN KEY ([productId]) REFERENCES [dbo].[Product]([id])
     ON DELETE CASCADE ON UPDATE CASCADE;
-GO
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH
