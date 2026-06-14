@@ -14,6 +14,7 @@ const SIZE_OPTIONS = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 type SizeKey = (typeof SIZE_OPTIONS)[number];
 type SizesMap = Record<SizeKey, string>;
 type AdditionalImage = { url: string; alt?: string; sortOrder: number };
+type ProductColorOption = { name: string; hex: string; sortOrder: number };
 
 interface Product {
   id: string;
@@ -27,7 +28,9 @@ interface Product {
   images?: Array<{ id?: string; url: string; alt?: string | null; sortOrder: number }>;
   active: boolean;
   hasSize: boolean;
+  hasColor: boolean;
   sizes?: Array<{ size: string; stock: number }>;
+  colors?: Array<{ name: string; hex: string; sortOrder: number }>;
   customizationOptions?: CustomizationOptions | null;
 }
 
@@ -63,7 +66,7 @@ export default function ProductsPage() {
   const [filter, setFilter] = useState<string | null>(null);
   const [presets, setPresets] = useState<PersonalizationPresets>(DEFAULT_PRESETS);
 
-  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes(), customizationOptions: defaultCustomizationOptions() };
+  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes(), hasColor: false, colors: [] as ProductColorOption[], customizationOptions: defaultCustomizationOptions() };
   const [uploading, setUploading] = useState(false);
   const [uploadingAdditional, setUploadingAdditional] = useState(false);
   const [form, setForm] = useState(emptyProduct);
@@ -101,13 +104,25 @@ export default function ProductsPage() {
     const stockNum = parseInt(form.stock, 10);
     if (!form.name || !priceNum || isNaN(priceNum)) return;
     if (isNaN(stockNum) || stockNum < 0) { alert("Stock quantity is required and must be 0 or more"); return; }
+    if (form.hasColor) {
+      const cleanColors = form.colors.filter((c) => c.name.trim() && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c.hex));
+      if (cleanColors.length === 0) {
+        alert("Add at least one color (with a name and a swatch) or uncheck \"This product has colors\".");
+        return;
+      }
+    }
 
     const sizesPayload = Object.fromEntries(SIZE_OPTIONS.map((s) => [s, form.hasSize ? Math.max(0, parseInt(form.sizes[s], 10) || 0) : 0]));
     const additionalImages = normalizeAdditionalImages(form.additionalImages);
+    const colorsPayload = form.hasColor
+      ? form.colors
+          .filter((c) => c.name.trim() && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c.hex))
+          .map((c, index) => ({ name: c.name.trim(), hex: c.hex, sortOrder: index }))
+      : [];
     const method = editing ? "PUT" : "POST";
     const body = editing
-      ? { ...form, id: editing.id, price: priceNum, stock: stockNum, sizes: sizesPayload, additionalImages }
-      : { ...form, price: priceNum, stock: stockNum, sizes: sizesPayload, additionalImages };
+      ? { ...form, id: editing.id, price: priceNum, stock: stockNum, sizes: sizesPayload, additionalImages, colors: colorsPayload }
+      : { ...form, price: priceNum, stock: stockNum, sizes: sizesPayload, additionalImages, colors: colorsPayload };
 
     await fetch("/api/products", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -164,8 +179,34 @@ export default function ProductsPage() {
         <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Product name" />
         <div className="grid grid-cols-3 gap-4"><input type="text" inputMode="decimal" value={form.price} onChange={(e) => { const val = e.target.value; if (val === "" || /^\d+\.?\d{0,2}$/.test(val)) setForm({ ...form, price: val }); }} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="25.00" />{!form.hasSize && <input type="number" min="0" step="1" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Stock" />}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm">{CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select></div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.hasSize} onChange={(e) => setForm({ ...form, hasSize: e.target.checked })} />This product has sizes</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.hasColor} onChange={(e) => setForm({ ...form, hasColor: e.target.checked, colors: e.target.checked && form.colors.length === 0 ? [{ name: "", hex: "#000000", sortOrder: 0 }] : form.colors })} />This product comes in multiple colors</label>
         <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Description" />
         {form.hasSize && <div className="border rounded-lg p-3"><p className="text-sm font-semibold mb-2">Size stock</p><div className="grid grid-cols-3 gap-3">{SIZE_OPTIONS.map((s) => <div key={s}><label className="block text-xs mb-1">{s}</label><input type="number" min={0} step={1} value={form.sizes[s]} onChange={(e) => setForm({ ...form, sizes: { ...form.sizes, [s]: e.target.value } })} className="w-full px-2 py-2 rounded-lg border text-sm" /></div>)}</div></div>}
+
+        {form.hasColor && <div className="border rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold">Colors</p>
+            <button type="button" onClick={() => setForm({ ...form, colors: [...form.colors, { name: "", hex: "#000000", sortOrder: form.colors.length }] })} className="text-xs px-2 py-1 rounded border">+ Add color</button>
+          </div>
+          <p className="text-[11px] text-gray-500 mb-2">Buyer will pick one of these from a dropdown on the product page. The name shows on the order so you know what to make.</p>
+          {form.colors.length === 0 ? (
+            <p className="text-xs text-gray-500">No colors yet — click "Add color".</p>
+          ) : (
+            <div className="space-y-2">
+              {form.colors.map((c, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <input type="text" value={c.name} placeholder="Color name (e.g. Pink)" onChange={(e) => { const next = [...form.colors]; next[idx] = { ...next[idx], name: e.target.value }; setForm({ ...form, colors: next }); }} className="flex-1 px-2 py-1.5 rounded border text-sm" />
+                  <input type="color" value={c.hex} onChange={(e) => { const next = [...form.colors]; next[idx] = { ...next[idx], hex: e.target.value }; setForm({ ...form, colors: next }); }} className="w-10 h-8 border rounded" />
+                  <div className="flex flex-col gap-1">
+                    <button type="button" disabled={idx === 0} onClick={() => { if (idx === 0) return; const next = [...form.colors]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; setForm({ ...form, colors: next.map((c, i) => ({ ...c, sortOrder: i })) }); }} className="text-xs px-2 py-0.5 rounded border disabled:opacity-30">↑</button>
+                    <button type="button" disabled={idx === form.colors.length - 1} onClick={() => { if (idx === form.colors.length - 1) return; const next = [...form.colors]; [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]]; setForm({ ...form, colors: next.map((c, i) => ({ ...c, sortOrder: i })) }); }} className="text-xs px-2 py-0.5 rounded border disabled:opacity-30">↓</button>
+                  </div>
+                  <button type="button" onClick={() => setForm({ ...form, colors: form.colors.filter((_, i) => i !== idx).map((c, i) => ({ ...c, sortOrder: i })) })} className="text-xs px-2 py-1 rounded border text-red">Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>}
 
         <div>
           <label className="block text-sm font-medium mb-1">Primary Photo (Hero)</label>
@@ -455,7 +496,7 @@ export default function ProductsPage() {
     </div></div>}
 
     {loading ? <div className="text-center py-12">Loading...</div> : <div className="bg-white rounded-xl border shadow-sm overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[640px]"><thead><tr className="border-b bg-gray-50/50"><th className="text-left text-xs px-5 py-3">Product</th><th className="text-left text-xs px-5 py-3 hidden md:table-cell">Category</th><th className="text-left text-xs px-5 py-3">Price</th><th className="text-left text-xs px-5 py-3">Stock</th><th className="text-left text-xs px-5 py-3">Status</th><th className="text-right text-xs px-5 py-3">Actions</th></tr></thead><tbody>{filtered.map((product) => {
-      const openEditor = () => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes), customizationOptions: (product.customizationOptions ?? defaultCustomizationOptions()) as CustomizationOptions }); setShowForm(true); };
+      const openEditor = () => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes), hasColor: Boolean(product.hasColor), colors: (product.colors ?? []).map((c, index) => ({ name: c.name, hex: c.hex, sortOrder: c.sortOrder ?? index })), customizationOptions: (product.customizationOptions ?? defaultCustomizationOptions()) as CustomizationOptions }); setShowForm(true); };
       return <tr key={product.id} className="border-b hover:bg-gray-50/50"><td className="px-5 py-4 cursor-pointer" onClick={openEditor}><div className="font-medium text-sm text-navy underline-offset-2 hover:underline">{product.name}</div><div className="text-[11px] text-gray-500 md:hidden mt-0.5">Tap to edit</div></td><td className="px-5 py-4 text-sm hidden md:table-cell">{product.category}</td><td className="px-5 py-4 text-sm font-semibold">${product.price.toFixed(2)}</td><td className="px-5 py-4 text-xs">{product.hasSize ? SIZE_OPTIONS.map((s) => `${s}:${product.sizes?.find((x) => x.size === s)?.stock ?? 0}`).join(" • ") : `Qty: ${product.stock}`}</td><td className="px-5 py-4"><button onClick={() => handleToggleActive(product)} className={`text-xs px-2.5 py-1 rounded-full ${product.active ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}>{product.active ? "Active" : "Hidden"}</button></td><td className="px-5 py-4 text-right whitespace-nowrap"><button onClick={openEditor} className="text-sm text-navy mr-3">Edit</button><button onClick={() => handleDelete(product.id)} className="text-sm text-red">Delete</button></td></tr>;
     })}</tbody></table></div></div>}
   </div>;

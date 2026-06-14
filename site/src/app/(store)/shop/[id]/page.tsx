@@ -17,8 +17,10 @@ type ProductView = {
   image?: string | null;
   stock?: number | null;
   hasSize?: boolean | null;
+  hasColor?: boolean | null;
   sizes?: Array<{ size: string; stock: number }>;
   images?: Array<{ url: string; alt?: string | null; sortOrder: number }>;
+  colors?: Array<{ name: string; hex: string; sortOrder: number }>;
   customizationOptions?: string | null;
 };
 
@@ -62,7 +64,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               {Boolean(product.hasSize) && <p className="text-xs text-text-muted">
                 Available sizes: {(product.sizes ?? []).filter((s) => s.stock > 0).map((s) => s.size).join(", ") || "None"}
               </p>}
-              <ProductPurchasePanel product={{ id: product.id, name: product.name, price: product.price, stock: product.stock ?? 0, hasSize: Boolean(product.hasSize), category: product.category, image: product.image ?? undefined, sizes: product.sizes ?? [], customizationOptions }} />
+              <ProductPurchasePanel product={{ id: product.id, name: product.name, price: product.price, stock: product.stock ?? 0, hasSize: Boolean(product.hasSize), hasColor: Boolean(product.hasColor), category: product.category, image: product.image ?? undefined, sizes: product.sizes ?? [], colors: product.colors ?? [], customizationOptions }} />
             </div>
 
             <p className="text-text-muted/60 text-xs mt-4 text-center">

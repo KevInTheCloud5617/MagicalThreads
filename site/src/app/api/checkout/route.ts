@@ -24,6 +24,7 @@ type CheckoutInputItem = {
   id: string;
   quantity: number;
   size?: string;
+  color?: string;
   customization?: Customization;
 };
 
@@ -33,6 +34,7 @@ type ValidatedItem = {
   price: number;
   quantity: number;
   size: string | null;
+  color: string | null;
   hasSize: boolean;
   stripePriceId: string | null;
   customization?: Customization;
@@ -44,6 +46,7 @@ type ReservationMetadataItem = {
   productId: string;
   quantity: number;
   size: string;
+  color?: string;
 };
 
 const FREE_SHIPPING_THRESHOLD_CENTS = 12000;
@@ -98,10 +101,26 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
     for (const item of items) {
       const product = await tx.product.findFirst({
         where: { id: item.id, active: true },
+        include: { colors: true },
       });
 
       if (!product) {
         throw new CheckoutBusinessError("Product unavailable", 409);
+      }
+
+      let validatedColor: string | null = null;
+      if (product.hasColor) {
+        const allowedNames = new Set((product.colors ?? []).map((c) => c.name));
+        if (allowedNames.size === 0) {
+          throw new CheckoutBusinessError(`Color selection unavailable for ${product.name}`, 400);
+        }
+        if (!item.color || typeof item.color !== "string") {
+          throw new CheckoutBusinessError(`Color is required for ${product.name}`, 400);
+        }
+        if (!allowedNames.has(item.color)) {
+          throw new CheckoutBusinessError(`Invalid color for ${product.name}`, 400);
+        }
+        validatedColor = item.color;
       }
 
       let validatedCustomization: Customization | undefined;
@@ -136,6 +155,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
           price: product.price,
           quantity: item.quantity,
           size: item.size,
+          color: validatedColor,
           hasSize: true,
           stripePriceId: product.stripePriceId,
           customization: validatedCustomization,
@@ -153,6 +173,7 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
         price: product.price,
         quantity: item.quantity,
         size: null,
+        color: validatedColor,
         hasSize: false,
         stripePriceId: product.stripePriceId,
         customization: validatedCustomization,
@@ -164,9 +185,13 @@ async function validateItems(items: CheckoutInputItem[]): Promise<ValidatedItem[
 }
 
 async function reserveItemsForMock(items: CheckoutInputItem[], validatedItems: ValidatedItem[]): Promise<ReservedItem[]> {
-  const customizationById = new Map<string, Customization | undefined>();
+  // Index validated items by id + size + color so we can carry forward the
+  // resolved color/customization without re-validating inside the reservation tx.
+  const validatedKey = (id: string, size: string | null | undefined, color: string | null | undefined) =>
+    `${id}|${size ?? ""}|${color ?? ""}`;
+  const validatedById = new Map<string, ValidatedItem>();
   for (const v of validatedItems) {
-    customizationById.set(`${v.id}|${v.size ?? ""}`, v.customization);
+    validatedById.set(validatedKey(v.id, v.size, v.color), v);
   }
   return prisma.$transaction(async (tx) => {
     const reserved: ReservedItem[] = [];
@@ -180,7 +205,9 @@ async function reserveItemsForMock(items: CheckoutInputItem[], validatedItems: V
         throw new CheckoutBusinessError("Product unavailable", 409);
       }
 
-      const customization = customizationById.get(`${item.id}|${item.size ?? ""}`);
+      const validated = validatedById.get(validatedKey(item.id, item.size ?? null, item.color ?? null));
+      const customization = validated?.customization;
+      const color = validated?.color ?? (item.color ?? null);
 
       if (product.hasSize) {
         if (!item.size || typeof item.size !== "string" || item.size === "ONE_SIZE") {
@@ -206,6 +233,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[], validatedItems: V
           price: product.price,
           quantity: item.quantity,
           size: item.size,
+          color,
           hasSize: true,
           stripePriceId: product.stripePriceId,
           customization,
@@ -228,6 +256,7 @@ async function reserveItemsForMock(items: CheckoutInputItem[], validatedItems: V
         price: product.price,
         quantity: item.quantity,
         size: null,
+        color,
         hasSize: false,
         stripePriceId: product.stripePriceId,
         customization,
@@ -359,6 +388,7 @@ export async function POST(req: NextRequest) {
               quantity: item.quantity,
               price: item.price,
               size: item.size,
+              color: item.color,
               customization: serializeCustomization(item.customization ?? null),
             })),
           },
@@ -394,6 +424,7 @@ export async function POST(req: NextRequest) {
       productId: item.id,
       quantity: item.quantity,
       size: item.size || "ONE_SIZE",
+      ...(item.color ? { color: item.color } : {}),
     }));
 
     try {
@@ -402,6 +433,7 @@ export async function POST(req: NextRequest) {
         mode: "payment",
         line_items: reservedItems.map((item) => {
           const upcharge = item.customization?.upcharge ?? 0;
+          const colorDescription = item.color ? `Color: ${item.color}` : undefined;
           const personalizationDescription = item.customization
             ? `Personalization: ${[
                 item.customization.text ? `"${item.customization.text}"` : null,
@@ -410,7 +442,8 @@ export async function POST(req: NextRequest) {
                 item.customization.placement,
               ].filter(Boolean).join(" · ")}`
             : undefined;
-          if (item.stripePriceId && upcharge === 0 && !personalizationDescription) {
+          const description = [colorDescription, personalizationDescription].filter(Boolean).join(" · ") || undefined;
+          if (item.stripePriceId && upcharge === 0 && !description) {
             return {
               price: item.stripePriceId,
               quantity: item.quantity,
@@ -422,10 +455,11 @@ export async function POST(req: NextRequest) {
               currency: "usd",
               product_data: {
                 name: item.name,
-                ...(personalizationDescription ? { description: personalizationDescription } : {}),
+                ...(description ? { description } : {}),
                 metadata: {
                   productId: item.id,
                   size: item.size || "ONE_SIZE",
+                  ...(item.color ? { color: item.color } : {}),
                   ...(item.customization ? {
                     personalizationText: item.customization.text ?? "",
                     personalizationColor: item.customization.color?.name ?? "",
@@ -468,6 +502,7 @@ export async function POST(req: NextRequest) {
               quantity: item.quantity,
               price: item.price,
               size: item.size,
+              color: item.color,
               customization: serializeCustomization(item.customization ?? null),
             })),
           },

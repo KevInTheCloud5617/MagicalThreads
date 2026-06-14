@@ -10,6 +10,7 @@ export const categories = [
 const withRelations = {
   sizes: true,
   images: { orderBy: { sortOrder: "asc" as const } },
+  colors: { orderBy: { sortOrder: "asc" as const } },
 } as const;
 
 export async function getProducts() {

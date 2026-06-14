@@ -73,6 +73,7 @@ export default function CartDrawer() {
             id: i.id,
             quantity: i.quantity,
             ...(i.size !== "ONE_SIZE" ? { size: i.size } : {}),
+            ...(i.color ? { color: i.color } : {}),
             ...(i.customization ? { customization: i.customization } : {}),
           })),
         }),
@@ -119,6 +120,7 @@ export default function CartDrawer() {
                   <h3 className="font-semibold text-navy text-sm truncate">{item.name}</h3>
                   <p className="text-gold font-semibold text-sm">${item.price.toFixed(2)}</p>
                   {item.size !== "ONE_SIZE" && <p className="text-text-muted text-xs">Size: {item.size}</p>}
+                  {item.color && <p className="text-text-muted text-xs">Color: {item.color}</p>}
                   {item.customization && (() => {
                     const fontFamily = ({
                       Script: 'var(--font-script), "Brush Script MT", cursive',

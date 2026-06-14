@@ -2,7 +2,7 @@ export async function notifyNewOrder(order: {
   id: string;
   customerEmail: string;
   total: number;
-  items: Array<{ name: string; quantity: number; size?: string; price: number }>;
+  items: Array<{ name: string; quantity: number; size?: string; color?: string; price: number }>;
   shippingName?: string;
   shippingAddress?: string;
 }) {

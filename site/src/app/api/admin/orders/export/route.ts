@@ -47,6 +47,7 @@ export async function GET() {
         productId: item.productId,
         productName: item.product?.name || `Deleted product (${item.productId ?? "unknown"})`,
         size: item.size,
+        color: item.color,
         quantity: item.quantity,
         price: item.price,
       })),

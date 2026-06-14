@@ -7,6 +7,7 @@ interface OrderItem {
   quantity: number;
   price: number;
   size?: string | null;
+  color?: string | null;
   product: { name: string };
 }
 
@@ -123,7 +124,7 @@ export default function OrdersPage() {
                     {order.archived ? <div className="text-[10px] text-text-muted mt-1">Archived</div> : null}
                   </td>
                   <td className="px-5 py-4 text-sm text-text-muted max-w-xs">
-                    {order.items.map((i) => `${i.product.name}${i.size ? ` (${i.size})` : ""}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join(", ")}
+                    {order.items.map((i) => `${i.product.name}${i.color ? ` [${i.color}]` : ""}${i.size ? ` (${i.size})` : ""}${i.quantity > 1 ? ` ×${i.quantity}` : ""}`).join(", ")}
                   </td>
                   <td className="px-5 py-4 text-sm font-semibold text-navy">${order.total.toFixed(2)}</td>
                   <td className="px-5 py-4">
