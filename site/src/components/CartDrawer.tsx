@@ -126,15 +126,20 @@ export default function CartDrawer() {
                       Varsity: 'var(--font-varsity), Impact, "Arial Black", sans-serif',
                       Cursive: 'var(--font-cursive), "Snell Roundhand", cursive',
                       Serif: 'var(--font-playfair), Georgia, "Times New Roman", serif',
-                    } as Record<string, string>)[item.customization.font] || 'inherit';
+                    } as Record<string, string>)[item.customization.font ?? ""] || 'inherit';
+                    const parts = [
+                      item.customization.color?.name,
+                      item.customization.font,
+                      item.customization.placement,
+                    ].filter(Boolean);
                     return (
                       <div className="mt-0.5 text-[11px] leading-snug">
                         <div className="text-text-muted">
                           Personalization (
-                          <span style={{ fontFamily, color: item.customization.color.hex }} className="text-base align-middle">
-                            {item.customization.text}
+                          <span style={{ fontFamily, color: item.customization.color?.hex ?? "#0f172a" }} className="text-base align-middle">
+                            {item.customization.text ?? ""}
                           </span>
-                          ) — {item.customization.color.name} {item.customization.font}, {item.customization.placement}
+                          ){parts.length ? ` — ${parts.join(", ")}` : ""}
                           {item.customization.upcharge > 0 ? ` (+$${item.customization.upcharge.toFixed(2)})` : ""}
                         </div>
                       </div>

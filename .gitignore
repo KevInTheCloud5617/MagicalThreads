@@ -26,3 +26,4 @@ certs/
 # Misc
 package-lock.json
 .DS_Store
+backups/

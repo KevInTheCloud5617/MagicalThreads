@@ -403,7 +403,12 @@ export async function POST(req: NextRequest) {
         line_items: reservedItems.map((item) => {
           const upcharge = item.customization?.upcharge ?? 0;
           const personalizationDescription = item.customization
-            ? `Personalization: "${item.customization.text}" · ${item.customization.color.name} · ${item.customization.font} · ${item.customization.placement}`
+            ? `Personalization: ${[
+                item.customization.text ? `"${item.customization.text}"` : null,
+                item.customization.color?.name,
+                item.customization.font,
+                item.customization.placement,
+              ].filter(Boolean).join(" · ")}`
             : undefined;
           if (item.stripePriceId && upcharge === 0 && !personalizationDescription) {
             return {
@@ -422,11 +427,11 @@ export async function POST(req: NextRequest) {
                   productId: item.id,
                   size: item.size || "ONE_SIZE",
                   ...(item.customization ? {
-                    personalizationText: item.customization.text,
-                    personalizationColor: item.customization.color.name,
-                    personalizationColorHex: item.customization.color.hex,
-                    personalizationFont: item.customization.font,
-                    personalizationPlacement: item.customization.placement,
+                    personalizationText: item.customization.text ?? "",
+                    personalizationColor: item.customization.color?.name ?? "",
+                    personalizationColorHex: item.customization.color?.hex ?? "",
+                    personalizationFont: item.customization.font ?? "",
+                    personalizationPlacement: item.customization.placement ?? "",
                   } : {}),
                 },
               },

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useFeature } from "@/lib/useFeature";
 import {
-  CUSTOMIZATION_TYPES,
   FONT_PRESETS,
   PLACEMENT_PRESETS,
   DEFAULT_PRESETS,
@@ -49,6 +48,10 @@ const defaultCustomizationOptions = (): CustomizationOptions => ({
   fonts: [],
   placements: [],
   upcharge: 0,
+  showText: false,
+  showColors: false,
+  showFonts: false,
+  showPlacements: false,
 });
 
 export default function ProductsPage() {
@@ -281,31 +284,39 @@ export default function ProductsPage() {
               </button>
             </div>
           );
+          const anyOn = Boolean(co.showText || co.showColors || co.showFonts || co.showPlacements);
+          // Keep `enabled` in sync — server-side validators key off it.
+          if (co.enabled !== anyOn) {
+            // Defer the update to avoid setState during render in React's strict mode.
+            setTimeout(() => setCO({ enabled: anyOn }), 0);
+          }
+          const sectionToggle = (label: string, on: boolean, onChange: (next: boolean) => void) => (
+            <label className="flex items-center justify-between gap-2 text-sm py-1.5 border-b last:border-b-0">
+              <span className="font-medium text-navy">{label}</span>
+              <input
+                type="checkbox"
+                checked={on}
+                onChange={(e) => onChange(e.target.checked)}
+                className="w-4 h-4"
+              />
+            </label>
+          );
           return (
-            <details className="border rounded-lg p-3" open={co.enabled}>
+            <details className="border rounded-lg p-3" open={anyOn}>
               <summary className="text-sm font-semibold cursor-pointer">Personalization</summary>
               <div className="mt-3 space-y-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={co.enabled} onChange={(e) => setCO({ enabled: e.target.checked })} />
-                  Allow personalization for this product
-                </label>
-                {co.enabled && (
+                <div className="bg-gray-50/60 border rounded p-2">
+                  {sectionToggle("Text input", Boolean(co.showText), (next) => setCO({ showText: next }))}
+                  {sectionToggle("Thread color", Boolean(co.showColors), (next) => setCO({ showColors: next }))}
+                  {sectionToggle("Font", Boolean(co.showFonts), (next) => setCO({ showFonts: next }))}
+                  {sectionToggle("Placement", Boolean(co.showPlacements), (next) => setCO({ showPlacements: next }))}
+                </div>
+                {!anyOn && (
+                  <p className="text-xs text-gray-500">Turn on at least one option above to enable personalization for this product.</p>
+                )}
+                {anyOn && (
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-semibold mb-1">Types</label>
-                      <div className="flex flex-wrap gap-3">
-                        {CUSTOMIZATION_TYPES.map((t) => (
-                          <label key={t} className="text-xs flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={co.types.includes(t)}
-                              onChange={(e) => setCO({ types: e.target.checked ? [...co.types, t] : co.types.filter((x) => x !== t) })}
-                            />
-                            {t}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    {co.showText && (
                     <div>
                       <label className="block text-xs font-semibold mb-1">Max characters</label>
                       <input
@@ -318,7 +329,9 @@ export default function ProductsPage() {
                       />
                       <p className="text-[11px] text-gray-500 mt-1">Global default: {presets.defaultMaxChars}</p>
                     </div>
+                    )}
 
+                    {co.showColors && (
                     <div>
                       {overrideToggle("Colors", Boolean(co.colorsOverride), (next) => {
                         if (next) setCO({ colorsOverride: true, colors: co.colors.length ? co.colors : presets.colors });
@@ -353,7 +366,9 @@ export default function ProductsPage() {
                         </div>
                       )}
                     </div>
+                    )}
 
+                    {co.showFonts && (
                     <div>
                       {overrideToggle("Fonts", Boolean(co.fontsOverride), (next) => {
                         if (next) setCO({ fontsOverride: true, fonts: co.fonts.length ? co.fonts : presets.fonts });
@@ -384,7 +399,9 @@ export default function ProductsPage() {
                         </div>
                       )}
                     </div>
+                    )}
 
+                    {co.showPlacements && (
                     <div>
                       {overrideToggle("Placements", Boolean(co.placementsOverride), (next) => {
                         if (next) setCO({ placementsOverride: true, placements: co.placements.length ? co.placements : presets.placements });
@@ -413,6 +430,7 @@ export default function ProductsPage() {
                         </div>
                       )}
                     </div>
+                    )}
 
                     <div>
                       <label className="block text-xs font-semibold mb-1">Upcharge ($)</label>

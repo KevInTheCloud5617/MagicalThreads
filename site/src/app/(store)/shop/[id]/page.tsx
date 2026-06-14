@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { parseCustomizationOptions, type CustomizationOptions } from "@/lib/customization";
+import { getPersonalizationPresets, resolveCustomizationOptions } from "@/lib/personalization-presets";
+import prisma from "@/lib/db";
 
 type ProductView = {
   id: string;
@@ -26,7 +28,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
   if (!product) return notFound();
 
-  const customizationOptions: CustomizationOptions | null = parseCustomizationOptions(product.customizationOptions ?? null);
+  const rawOptions = parseCustomizationOptions(product.customizationOptions ?? null);
+  const presets = await getPersonalizationPresets(prisma);
+  const customizationOptions: CustomizationOptions | null = resolveCustomizationOptions(rawOptions, presets);
   const allProducts = (await getProducts()) as ProductView[];
   const categoryInfo = categories.find((c) => c.slug === product.category);
   const related = allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3);

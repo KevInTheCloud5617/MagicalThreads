@@ -22,6 +22,13 @@ export type CustomizationOptions = {
   fonts: string[];
   placements: string[];
   upcharge: number;
+  // Section toggles — control which subsections render on the storefront and
+  // which are required at checkout. Default to true for back-compat with
+  // existing data that predates these flags.
+  showText?: boolean;
+  showColors?: boolean;
+  showFonts?: boolean;
+  showPlacements?: boolean;
   // When true, the corresponding array is product-specific; when false/undefined
   // the storefront falls back to the global PersonalizationPresets library.
   colorsOverride?: boolean;
@@ -29,11 +36,16 @@ export type CustomizationOptions = {
   placementsOverride?: boolean;
 };
 
+// Resolved view of a section flag: undefined is treated as true for back-compat.
+export function sectionOn(flag: boolean | undefined): boolean {
+  return flag !== false;
+}
+
 export type Customization = {
-  text: string;
-  color: CustomizationColor;
-  font: string;
-  placement: string;
+  text?: string;
+  color?: CustomizationColor;
+  font?: string;
+  placement?: string;
   upcharge: number;
 };
 
@@ -93,6 +105,10 @@ export function parseCustomizationOptions(raw: unknown): CustomizationOptions | 
   if (typeof o.colorsOverride === "boolean") out.colorsOverride = o.colorsOverride;
   if (typeof o.fontsOverride === "boolean") out.fontsOverride = o.fontsOverride;
   if (typeof o.placementsOverride === "boolean") out.placementsOverride = o.placementsOverride;
+  if (typeof o.showText === "boolean") out.showText = o.showText;
+  if (typeof o.showColors === "boolean") out.showColors = o.showColors;
+  if (typeof o.showFonts === "boolean") out.showFonts = o.showFonts;
+  if (typeof o.showPlacements === "boolean") out.showPlacements = o.showPlacements;
   return out;
 }
 
@@ -173,31 +189,36 @@ export function validateCustomizationAgainstOptions(
   if (!obj || typeof obj !== "object") return { ok: false, error: "Invalid customization payload" };
   const o = obj as Record<string, unknown>;
 
-  const text = typeof o.text === "string" ? o.text.trim() : "";
-  if (!text) return { ok: false, error: "Personalization text is required" };
-  if (text.length > options.maxChars) return { ok: false, error: `Text exceeds ${options.maxChars} characters` };
+  const out: Customization = { upcharge: options.upcharge };
 
-  const colorIn = o.color && typeof o.color === "object" ? (o.color as Record<string, unknown>) : null;
-  const colorName = colorIn && typeof colorIn.name === "string" ? colorIn.name : "";
-  const allowedColor = options.colors.find((c) => c.name === colorName);
-  if (!allowedColor) return { ok: false, error: "Invalid color selection" };
+  if (sectionOn(options.showText)) {
+    const text = typeof o.text === "string" ? o.text.trim() : "";
+    if (!text) return { ok: false, error: "Personalization text is required" };
+    if (text.length > options.maxChars) return { ok: false, error: `Text exceeds ${options.maxChars} characters` };
+    out.text = text;
+  }
 
-  const font = typeof o.font === "string" ? o.font : "";
-  if (!options.fonts.includes(font)) return { ok: false, error: "Invalid font selection" };
+  if (sectionOn(options.showColors) && options.colors.length > 0) {
+    const colorIn = o.color && typeof o.color === "object" ? (o.color as Record<string, unknown>) : null;
+    const colorName = colorIn && typeof colorIn.name === "string" ? colorIn.name : "";
+    const allowedColor = options.colors.find((c) => c.name === colorName);
+    if (!allowedColor) return { ok: false, error: "Invalid color selection" };
+    out.color = allowedColor;
+  }
 
-  const placement = typeof o.placement === "string" ? o.placement : "";
-  if (!options.placements.includes(placement)) return { ok: false, error: "Invalid placement selection" };
+  if (sectionOn(options.showFonts) && options.fonts.length > 0) {
+    const font = typeof o.font === "string" ? o.font : "";
+    if (!options.fonts.includes(font)) return { ok: false, error: "Invalid font selection" };
+    out.font = font;
+  }
 
-  return {
-    ok: true,
-    value: {
-      text,
-      color: allowedColor,
-      font,
-      placement,
-      upcharge: options.upcharge,
-    },
-  };
+  if (sectionOn(options.showPlacements) && options.placements.length > 0) {
+    const placement = typeof o.placement === "string" ? o.placement : "";
+    if (!options.placements.includes(placement)) return { ok: false, error: "Invalid placement selection" };
+    out.placement = placement;
+  }
+
+  return { ok: true, value: out };
 }
 
 export function parseCustomization(raw: unknown): Customization | null {
@@ -218,8 +239,13 @@ export function parseCustomization(raw: unknown): Customization | null {
   const font = typeof o.font === "string" ? o.font : "";
   const placement = typeof o.placement === "string" ? o.placement : "";
   const upcharge = Number(o.upcharge ?? 0);
-  if (!text || !color?.name || !color?.hex) return null;
-  return { text, color, font, placement, upcharge: Number.isFinite(upcharge) ? upcharge : 0 };
+  const out: Customization = { upcharge: Number.isFinite(upcharge) ? upcharge : 0 };
+  if (text) out.text = text;
+  if (color && color.name && color.hex) out.color = color;
+  if (font) out.font = font;
+  if (placement) out.placement = placement;
+  if (!out.text && !out.color && !out.font && !out.placement) return null;
+  return out;
 }
 
 export function serializeCustomization(c: Customization | null): string | null {

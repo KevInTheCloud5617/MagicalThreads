@@ -133,6 +133,12 @@ export async function PUT(request: Request) {
   const additionalImages = normalizeAdditionalImages(updateData.additionalImages);
   delete updateData.sizes;
   delete updateData.additionalImages;
+  // Strip Prisma relation fields that may come back via spread of a fetched product
+  delete updateData.images;
+  delete updateData.productSizes;
+  delete updateData.orderItems;
+  delete updateData.createdAt;
+  delete updateData.updatedAt;
   if (Object.prototype.hasOwnProperty.call(updateData, "customizationOptions")) {
     updateData.customizationOptions = serializeCustomizationOptions(parseCustomizationOptions(updateData.customizationOptions));
   }
