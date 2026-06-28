@@ -22,6 +22,7 @@ interface Product {
   price: number;
   stock: number;
   category: string;
+  drop?: string | null;
   description: string;
   tag?: string;
   image?: string;
@@ -34,12 +35,7 @@ interface Product {
   customizationOptions?: CustomizationOptions | null;
 }
 
-const CATEGORIES = [
-  { slug: "crewnecks", name: "Embroidered Crewnecks", emoji: "🧵" },
-  { slug: "totes", name: "Tote Bags", emoji: "👜" },
-  { slug: "cups", name: "Glass Cups", emoji: "🥤" },
-  { slug: "vinyl", name: "Vinyl & Decals", emoji: "✂️" },
-];
+import { CATEGORIES, DROPS } from "@/lib/catalog";
 
 const emptySizes = (): SizesMap => ({ S: "0", M: "0", L: "0", XL: "0", "2XL": "0", "3XL": "0" });
 
@@ -66,7 +62,7 @@ export default function ProductsPage() {
   const [filter, setFilter] = useState<string | null>(null);
   const [presets, setPresets] = useState<PersonalizationPresets>(DEFAULT_PRESETS);
 
-  const emptyProduct = { name: "", price: "", stock: "0", category: "crewnecks", description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes(), hasColor: false, colors: [] as ProductColorOption[], customizationOptions: defaultCustomizationOptions() };
+  const emptyProduct = { name: "", price: "", stock: "0", category: "totes", drop: "" as string, description: "", tag: "", image: "", additionalImages: [] as AdditionalImage[], active: true, hasSize: false, sizes: emptySizes(), hasColor: false, colors: [] as ProductColorOption[], customizationOptions: defaultCustomizationOptions() };
   const [uploading, setUploading] = useState(false);
   const [uploadingAdditional, setUploadingAdditional] = useState(false);
   const [form, setForm] = useState(emptyProduct);
@@ -178,6 +174,13 @@ export default function ProductsPage() {
       <div className="space-y-4">
         <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Product name" />
         <div className="grid grid-cols-3 gap-4"><input type="text" inputMode="decimal" value={form.price} onChange={(e) => { const val = e.target.value; if (val === "" || /^\d+\.?\d{0,2}$/.test(val)) setForm({ ...form, price: val }); }} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="25.00" />{!form.hasSize && <input type="number" min="0" step="1" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Stock" />}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm">{CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select></div>
+        <div>
+          <label className="block text-xs font-medium mb-1 text-gray-600">Drop (Collection)</label>
+          <select value={form.drop || ""} onChange={(e) => setForm({ ...form, drop: e.target.value || "" })} className="w-full px-3 py-2 rounded-lg border text-sm">
+            <option value="">No drop (general catalog)</option>
+            {DROPS.map((d) => <option key={d.slug} value={d.slug}>{d.emoji} {d.name}{!d.active ? " (coming soon)" : ""}</option>)}
+          </select>
+        </div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.hasSize} onChange={(e) => setForm({ ...form, hasSize: e.target.checked })} />This product has sizes</label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.hasColor} onChange={(e) => setForm({ ...form, hasColor: e.target.checked, colors: e.target.checked && form.colors.length === 0 ? [{ name: "", hex: "#000000", sortOrder: 0 }] : form.colors })} />This product comes in multiple colors</label>
         <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg border text-sm" placeholder="Description" />
@@ -496,7 +499,7 @@ export default function ProductsPage() {
     </div></div>}
 
     {loading ? <div className="text-center py-12">Loading...</div> : <div className="bg-white rounded-xl border shadow-sm overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[640px]"><thead><tr className="border-b bg-gray-50/50"><th className="text-left text-xs px-5 py-3">Product</th><th className="text-left text-xs px-5 py-3 hidden md:table-cell">Category</th><th className="text-left text-xs px-5 py-3">Price</th><th className="text-left text-xs px-5 py-3">Stock</th><th className="text-left text-xs px-5 py-3">Status</th><th className="text-right text-xs px-5 py-3">Actions</th></tr></thead><tbody>{filtered.map((product) => {
-      const openEditor = () => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes), hasColor: Boolean(product.hasColor), colors: (product.colors ?? []).map((c, index) => ({ name: c.name, hex: c.hex, sortOrder: c.sortOrder ?? index })), customizationOptions: (product.customizationOptions ?? defaultCustomizationOptions()) as CustomizationOptions }); setShowForm(true); };
+      const openEditor = () => { setEditing(product); setForm({ ...product, price: product.price.toString(), stock: (product.stock ?? 0).toString(), drop: product.drop || "", tag: product.tag || "", image: product.image || "", additionalImages: (product.images ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((img, index) => ({ url: img.url, alt: img.alt ?? undefined, sortOrder: index })), hasSize: Boolean(product.hasSize), sizes: mapSizes(product.sizes), hasColor: Boolean(product.hasColor), colors: (product.colors ?? []).map((c, index) => ({ name: c.name, hex: c.hex, sortOrder: c.sortOrder ?? index })), customizationOptions: (product.customizationOptions ?? defaultCustomizationOptions()) as CustomizationOptions }); setShowForm(true); };
       return <tr key={product.id} className="border-b hover:bg-gray-50/50"><td className="px-5 py-4 cursor-pointer" onClick={openEditor}><div className="font-medium text-sm text-navy underline-offset-2 hover:underline">{product.name}</div><div className="text-[11px] text-gray-500 md:hidden mt-0.5">Tap to edit</div></td><td className="px-5 py-4 text-sm hidden md:table-cell">{product.category}</td><td className="px-5 py-4 text-sm font-semibold">${product.price.toFixed(2)}</td><td className="px-5 py-4 text-xs">{product.hasSize ? SIZE_OPTIONS.map((s) => `${s}:${product.sizes?.find((x) => x.size === s)?.stock ?? 0}`).join(" • ") : `Qty: ${product.stock}`}</td><td className="px-5 py-4"><button onClick={() => handleToggleActive(product)} className={`text-xs px-2.5 py-1 rounded-full ${product.active ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}>{product.active ? "Active" : "Hidden"}</button></td><td className="px-5 py-4 text-right whitespace-nowrap"><button onClick={openEditor} className="text-sm text-navy mr-3">Edit</button><button onClick={() => handleDelete(product.id)} className="text-sm text-red">Delete</button></td></tr>;
     })}</tbody></table></div></div>}
   </div>;

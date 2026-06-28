@@ -14,6 +14,7 @@ model Product {
   slug        String   @unique
   price       Float
   category    String
+  drop        String?
   description String
   tag         String?
   image       String?

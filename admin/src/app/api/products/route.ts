@@ -120,6 +120,7 @@ export async function POST(request: Request) {
         slug,
         price,
         category: data.category ? sanitize(data.category) : data.category,
+        drop: data.drop ? sanitize(data.drop) : null,
         description: data.description ? sanitize(data.description) : data.description,
         tag: data.tag ? sanitize(data.tag) : null,
         image: data.image || null,
@@ -163,6 +164,8 @@ export async function PUT(request: Request) {
   if (!id || typeof id !== "string") return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
   if (updateData.tag === "") updateData.tag = null;
+  if (updateData.drop === "") updateData.drop = null;
+  if (updateData.drop !== undefined && updateData.drop !== null) updateData.drop = sanitize(updateData.drop);
   if (updateData.name !== undefined) updateData.name = sanitize(String(updateData.name));
   if (updateData.description !== undefined && updateData.description !== null) updateData.description = sanitize(updateData.description);
   if (updateData.category !== undefined && updateData.category !== null) updateData.category = sanitize(updateData.category);

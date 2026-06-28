@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { CATEGORIES, DROPS, getActiveDrops } from "@/lib/catalog";
 
 interface Product {
   id: string;
   name: string;
   price: number;
   category: string;
+  drop?: string | null;
   description: string;
   slug: string;
   tag?: string;
@@ -18,17 +21,20 @@ interface Product {
   active: boolean;
 }
 
-const categories = [
-  { slug: "crewnecks", name: "Embroidered Crewnecks", emoji: "🧵" },
-  { slug: "totes", name: "Tote Bags", emoji: "👜" },
-  { slug: "cups", name: "Glass Cups", emoji: "🥤" },
-  { slug: "vinyl", name: "Vinyl & Decals", emoji: "✂️" },
-];
-
 export default function ShopPage() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeDrop, setActiveDrop] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Read initial filters from URL
+  useEffect(() => {
+    const categoryParam = searchParams.get("category");
+    const dropParam = searchParams.get("drop");
+    if (categoryParam) setActiveCategory(categoryParam);
+    if (dropParam) setActiveDrop(dropParam);
+  }, [searchParams]);
 
   useEffect(() => {
     fetch("/api/products")
@@ -39,9 +45,13 @@ export default function ShopPage() {
       });
   }, []);
 
-  const filtered = activeCategory
-    ? products.filter((p) => p.category === activeCategory)
-    : products;
+  const filtered = products.filter((p) => {
+    if (activeCategory && p.category !== activeCategory) return false;
+    if (activeDrop && p.drop !== activeDrop) return false;
+    return true;
+  });
+
+  const activeDrops = getActiveDrops();
 
   return (
     <div>
@@ -65,32 +75,94 @@ export default function ShopPage() {
 
       {/* Filters + Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Category Filters */}
-        <div className="flex flex-wrap gap-3 justify-center mb-10">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-              activeCategory === null
-                ? "bg-navy text-white shadow-md"
-                : "bg-white text-navy border border-blue-pale hover:border-navy/30"
-            }`}
-          >
-            All
-          </button>
-          {categories.map((cat) => (
+        {/* Drop Filters */}
+        <div className="mb-6">
+          <p className="text-sm text-text-muted mb-2 text-center">Shop by Drop</p>
+          <div className="flex flex-wrap gap-3 justify-center">
             <button
-              key={cat.slug}
-              onClick={() => setActiveCategory(cat.slug)}
+              onClick={() => setActiveDrop(null)}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                activeCategory === cat.slug
+                activeDrop === null
+                  ? "bg-gold text-navy shadow-md"
+                  : "bg-white text-navy border border-blue-pale hover:border-gold/50"
+              }`}
+            >
+              All Drops
+            </button>
+            {activeDrops.map((drop) => (
+              <button
+                key={drop.slug}
+                onClick={() => setActiveDrop(drop.slug)}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                  activeDrop === drop.slug
+                    ? "bg-gold text-navy shadow-md"
+                    : "bg-white text-navy border border-blue-pale hover:border-gold/50"
+                }`}
+              >
+                {drop.emoji} {drop.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Category Filters */}
+        <div className="mb-10">
+          <p className="text-sm text-text-muted mb-2 text-center">Filter by Category</p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                activeCategory === null
                   ? "bg-navy text-white shadow-md"
                   : "bg-white text-navy border border-blue-pale hover:border-navy/30"
               }`}
             >
-              {cat.emoji} {cat.name}
+              All
             </button>
-          ))}
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.slug}
+                onClick={() => setActiveCategory(cat.slug)}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                  activeCategory === cat.slug
+                    ? "bg-navy text-white shadow-md"
+                    : "bg-white text-navy border border-blue-pale hover:border-navy/30"
+                }`}
+              >
+                {cat.emoji} {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Active Filters Summary */}
+        {(activeCategory || activeDrop) && (
+          <div className="text-center mb-6">
+            <span className="text-text-muted text-sm">
+              Showing{" "}
+              {activeDrop && (
+                <span className="font-medium text-navy">
+                  {DROPS.find((d) => d.slug === activeDrop)?.name}
+                </span>
+              )}
+              {activeDrop && activeCategory && " → "}
+              {activeCategory && (
+                <span className="font-medium text-navy">
+                  {CATEGORIES.find((c) => c.slug === activeCategory)?.name}
+                </span>
+              )}
+            </span>
+            <button
+              onClick={() => {
+                setActiveCategory(null);
+                setActiveDrop(null);
+              }}
+              className="ml-3 text-sm text-gold hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
 
         {/* Product Grid */}
         {loading ? (
@@ -114,7 +186,7 @@ export default function ShopPage() {
                     />
                   ) : (
                     <span className="text-5xl opacity-25">
-                      {categories.find((c) => c.slug === product.category)?.emoji || "🧵"}
+                      {CATEGORIES.find((c) => c.slug === product.category)?.emoji || "🧵"}
                     </span>
                   )}
                 </div>
@@ -139,11 +211,10 @@ export default function ShopPage() {
 
         {!loading && filtered.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-text-muted text-lg">No products in this category yet. Check back soon!</p>
+            <p className="text-text-muted text-lg">No products match your filters. Try adjusting your selection!</p>
           </div>
         )}
       </section>
-
     </div>
   );
 }

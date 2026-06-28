@@ -1,11 +1,7 @@
 import Link from "next/link";
+import { DROPS, CATEGORIES } from "@/lib/catalog";
 
-const featuredCategories = [
-  { name: "Embroidered Crewnecks", emoji: "🧵", href: "/shop?category=crewnecks" },
-  { name: "Custom Tote Bags", emoji: "👜", href: "/shop?category=totes" },
-  { name: "Glass Cups", emoji: "🥤", href: "/shop?category=cups" },
-  { name: "Vinyl & Decals", emoji: "✂️", href: "/shop?category=vinyl" },
-];
+const activeDrops = DROPS.filter((d) => d.active);
 
 export default function Home() {
   const instagramHandle = process.env.NEXT_PUBLIC_INSTAGRAM_HANDLE || "magicalthreadswithmeg";
@@ -29,7 +25,7 @@ export default function Home() {
             Handcrafted with Love &amp; a Touch of Magic
           </h1>
           <p className="font-[family-name:var(--font-inter)] text-blue-light/90 text-base md:text-xl max-w-3xl mx-auto mb-10">
-            Discover Megan&apos;s handmade embroidery and custom crafts — from cozy crewnecks and tote bags to glass cups and vinyl designs made to bring fairytale charm to everyday moments.
+            Discover Megan&apos;s handmade embroidery and custom crafts — from cozy sweatshirts and tote bags to drinkware and accessories made to bring fairytale charm to everyday moments.
           </p>
 
           <Link
@@ -41,49 +37,77 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured categories */}
+      {/* Featured Drops */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
         <div className="text-center mb-10 md:mb-12">
           <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl text-navy font-semibold mb-3">
-            What We Offer
+            Shop by Drop
           </h2>
           <p className="font-[family-name:var(--font-inter)] text-text-muted max-w-2xl mx-auto">
-            Thoughtfully made pieces, stitched and crafted with care for gifts, celebrations, and everyday magic.
+            Curated collections designed around moments, moods, and magic.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {featuredCategories.map((category) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          {activeDrops.map((drop) => (
             <Link
-              key={category.name}
-              href={category.href}
-              className="group rounded-2xl border border-blue-pale bg-white p-6 text-center hover:shadow-lg hover:-translate-y-1 transition-all"
+              key={drop.slug}
+              href={`/drops/${drop.slug}`}
+              className={`group relative rounded-2xl overflow-hidden bg-gradient-to-br ${drop.color} p-6 md:p-8 min-h-[180px] flex flex-col justify-end hover:shadow-xl transition-all hover:-translate-y-1`}
             >
-              <div className="text-4xl mb-4">{category.emoji}</div>
-              <h3 className="font-[family-name:var(--font-display)] text-xl text-navy group-hover:text-gold transition-colors">
-                {category.name}
-              </h3>
-              <p className="font-[family-name:var(--font-inter)] text-sm text-text-muted mt-2">
-                Explore this collection
-              </p>
+              <div className="absolute top-4 right-4 text-4xl opacity-30 group-hover:opacity-50 transition-opacity">
+                {drop.emoji}
+              </div>
+              <div className="relative z-10">
+                <h3 className="font-[family-name:var(--font-display)] text-xl md:text-2xl font-bold text-white mb-1">
+                  {drop.name}
+                </h3>
+                <p className="text-white/75 text-sm italic">
+                  {drop.tagline}
+                </p>
+              </div>
             </Link>
           ))}
+        </div>
+
+        <div className="text-center mt-8">
+          <Link href="/drops" className="text-gold hover:underline font-medium">
+            View all drops →
+          </Link>
+        </div>
+      </section>
+
+      {/* Category Quick Links */}
+      <section className="bg-blue-pale/30 border-y border-blue-pale py-12 md:py-14">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl text-navy font-semibold mb-6 text-center">
+            Shop by Category
+          </h2>
+          <div className="flex flex-wrap justify-center gap-3">
+            {CATEGORIES.map((cat) => (
+              <Link
+                key={cat.slug}
+                href={`/shop?category=${cat.slug}`}
+                className="px-5 py-2.5 rounded-full bg-white text-navy border border-blue-pale hover:border-gold hover:shadow-md transition-all text-sm font-medium"
+              >
+                {cat.emoji} {cat.name}
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* About */}
-      <section className="bg-blue-pale/30 border-y border-blue-pale">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16 text-center">
-          <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl text-navy font-semibold mb-4">
-            Made by Megan, Just for You
-          </h2>
-          <p className="font-[family-name:var(--font-inter)] text-text-muted text-base md:text-lg leading-relaxed mb-6">
-            Magical Threads with Meg began with a love for creating one-of-a-kind pieces that feel personal and meaningful. Every stitch, press, and detail is handcrafted to help you celebrate your style, your story, and the little moments that matter most.
-          </p>
-          <Link href="/about" className="text-navy font-medium underline underline-offset-4 hover:text-gold transition-colors">
-            Learn More About Megan
-          </Link>
-        </div>
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16 text-center">
+        <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl text-navy font-semibold mb-4">
+          Made by Megan, Just for You
+        </h2>
+        <p className="font-[family-name:var(--font-inter)] text-text-muted text-base md:text-lg leading-relaxed mb-6">
+          Magical Threads with Meg began with a love for creating one-of-a-kind pieces that feel personal and meaningful. Every stitch, press, and detail is handcrafted to help you celebrate your style, your story, and the little moments that matter most.
+        </p>
+        <Link href="/about" className="text-navy font-medium underline underline-offset-4 hover:text-gold transition-colors">
+          Learn More About Megan
+        </Link>
       </section>
 
       {/* CTA */}
