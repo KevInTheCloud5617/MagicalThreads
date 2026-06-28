@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "📊" },
   { href: "/products", label: "Products", icon: "🧵" },
+  { href: "/drops", label: "Drops", icon: "🎁" },
   { href: "/orders", label: "Orders", icon: "📦" },
   { href: "/settings/personalization", label: "Settings", icon: "⚙️" },
 ];
@@ -73,7 +74,7 @@ export default function Sidebar() {
         aria-label="Mobile navigation"
         className="md:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-navy-light bg-navy/98 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {navItems.map((item) => {
             const isActive = pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(item.href));

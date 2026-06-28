@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CATEGORIES, DROPS, getActiveDrops } from "@/lib/catalog";
+import { CATEGORIES } from "@/lib/catalog";
 
 interface Product {
   id: string;
@@ -21,9 +21,17 @@ interface Product {
   active: boolean;
 }
 
+interface Drop {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string | null;
+}
+
 export default function ShopPage() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [drops, setDrops] = useState<Drop[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeDrop, setActiveDrop] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,12 +45,14 @@ export default function ShopPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    fetch("/api/products")
-      .then((r) => r.json())
-      .then((data) => {
-        setProducts(data);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch("/api/products").then((r) => r.json()),
+      fetch("/api/drops").then((r) => r.json()),
+    ]).then(([productsData, dropsData]) => {
+      setProducts(productsData);
+      setDrops(dropsData);
+      setLoading(false);
+    });
   }, []);
 
   const filtered = products.filter((p) => {
@@ -50,8 +60,6 @@ export default function ShopPage() {
     if (activeDrop && p.drop !== activeDrop) return false;
     return true;
   });
-
-  const activeDrops = getActiveDrops();
 
   return (
     <div>
@@ -76,34 +84,36 @@ export default function ShopPage() {
       {/* Filters + Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Drop Filters */}
-        <div className="mb-6">
-          <p className="text-sm text-text-muted mb-2 text-center">Shop by Drop</p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <button
-              onClick={() => setActiveDrop(null)}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                activeDrop === null
-                  ? "bg-gold text-navy shadow-md"
-                  : "bg-white text-navy border border-blue-pale hover:border-gold/50"
-              }`}
-            >
-              All Drops
-            </button>
-            {activeDrops.map((drop) => (
+        {drops.length > 0 && (
+          <div className="mb-6">
+            <p className="text-sm text-text-muted mb-2 text-center">Shop by Drop</p>
+            <div className="flex flex-wrap gap-3 justify-center">
               <button
-                key={drop.slug}
-                onClick={() => setActiveDrop(drop.slug)}
+                onClick={() => setActiveDrop(null)}
                 className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  activeDrop === drop.slug
+                  activeDrop === null
                     ? "bg-gold text-navy shadow-md"
                     : "bg-white text-navy border border-blue-pale hover:border-gold/50"
                 }`}
               >
-                {drop.emoji} {drop.name}
+                All Drops
               </button>
-            ))}
+              {drops.map((drop) => (
+                <button
+                  key={drop.slug}
+                  onClick={() => setActiveDrop(drop.slug)}
+                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                    activeDrop === drop.slug
+                      ? "bg-gold text-navy shadow-md"
+                      : "bg-white text-navy border border-blue-pale hover:border-gold/50"
+                  }`}
+                >
+                  {drop.emoji} {drop.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Category Filters */}
         <div className="mb-10">
@@ -142,7 +152,7 @@ export default function ShopPage() {
               Showing{" "}
               {activeDrop && (
                 <span className="font-medium text-navy">
-                  {DROPS.find((d) => d.slug === activeDrop)?.name}
+                  {drops.find((d) => d.slug === activeDrop)?.name}
                 </span>
               )}
               {activeDrop && activeCategory && " → "}

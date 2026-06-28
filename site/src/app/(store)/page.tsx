@@ -1,10 +1,27 @@
 import Link from "next/link";
-import { DROPS, CATEGORIES } from "@/lib/catalog";
+import prisma from "@/lib/db";
+import { CATEGORIES } from "@/lib/catalog";
 
-const activeDrops = DROPS.filter((d) => d.active);
+interface Drop {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  emoji: string | null;
+  colorFrom: string | null;
+  colorTo: string | null;
+  active: boolean;
+}
 
-export default function Home() {
+export const revalidate = 60; // Revalidate every minute
+
+export default async function Home() {
   const instagramHandle = process.env.NEXT_PUBLIC_INSTAGRAM_HANDLE || "magicalthreadswithmeg";
+
+  const drops: Drop[] = await prisma.drop.findMany({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+  });
 
   return (
     <div className="bg-cream">
@@ -38,44 +55,49 @@ export default function Home() {
       </section>
 
       {/* Featured Drops */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
-        <div className="text-center mb-10 md:mb-12">
-          <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl text-navy font-semibold mb-3">
-            Shop by Drop
-          </h2>
-          <p className="font-[family-name:var(--font-inter)] text-text-muted max-w-2xl mx-auto">
-            Curated collections designed around moments, moods, and magic.
-          </p>
-        </div>
+      {drops.length > 0 && (
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
+          <div className="text-center mb-10 md:mb-12">
+            <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl text-navy font-semibold mb-3">
+              Shop by Drop
+            </h2>
+            <p className="font-[family-name:var(--font-inter)] text-text-muted max-w-2xl mx-auto">
+              Curated collections designed around moments, moods, and magic.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {activeDrops.map((drop) => (
-            <Link
-              key={drop.slug}
-              href={`/drops/${drop.slug}`}
-              className={`group relative rounded-2xl overflow-hidden bg-gradient-to-br ${drop.color} p-6 md:p-8 min-h-[180px] flex flex-col justify-end hover:shadow-xl transition-all hover:-translate-y-1`}
-            >
-              <div className="absolute top-4 right-4 text-4xl opacity-30 group-hover:opacity-50 transition-opacity">
-                {drop.emoji}
-              </div>
-              <div className="relative z-10">
-                <h3 className="font-[family-name:var(--font-display)] text-xl md:text-2xl font-bold text-white mb-1">
-                  {drop.name}
-                </h3>
-                <p className="text-white/75 text-sm italic">
-                  {drop.tagline}
-                </p>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            {drops.map((drop) => (
+              <Link
+                key={drop.slug}
+                href={`/drops/${drop.slug}`}
+                className="group relative rounded-2xl overflow-hidden p-6 md:p-8 min-h-[180px] flex flex-col justify-end hover:shadow-xl transition-all hover:-translate-y-1"
+                style={{
+                  background: `linear-gradient(to bottom right, ${drop.colorFrom || "#92400e"}, ${drop.colorTo || "#c2410c"})`,
+                }}
+              >
+                <div className="absolute top-4 right-4 text-4xl opacity-30 group-hover:opacity-50 transition-opacity">
+                  {drop.emoji || "✨"}
+                </div>
+                <div className="relative z-10">
+                  <h3 className="font-[family-name:var(--font-display)] text-xl md:text-2xl font-bold text-white mb-1">
+                    {drop.name}
+                  </h3>
+                  <p className="text-white/75 text-sm italic">
+                    {drop.tagline}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link href="/drops" className="text-gold hover:underline font-medium">
+              View all drops →
             </Link>
-          ))}
-        </div>
-
-        <div className="text-center mt-8">
-          <Link href="/drops" className="text-gold hover:underline font-medium">
-            View all drops →
-          </Link>
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* Category Quick Links */}
       <section className="bg-blue-pale/30 border-y border-blue-pale py-12 md:py-14">

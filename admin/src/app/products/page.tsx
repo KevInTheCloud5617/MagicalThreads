@@ -35,7 +35,14 @@ interface Product {
   customizationOptions?: CustomizationOptions | null;
 }
 
-import { CATEGORIES, DROPS } from "@/lib/catalog";
+import { CATEGORIES } from "@/lib/catalog";
+
+interface Drop {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string | null;
+}
 
 const emptySizes = (): SizesMap => ({ S: "0", M: "0", L: "0", XL: "0", "2XL": "0", "3XL": "0" });
 
@@ -56,6 +63,7 @@ const defaultCustomizationOptions = (): CustomizationOptions => ({
 export default function ProductsPage() {
   const embroideryOn = useFeature("embroidery");
   const [products, setProducts] = useState<Product[]>([]);
+  const [drops, setDrops] = useState<Drop[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -67,7 +75,13 @@ export default function ProductsPage() {
   const [uploadingAdditional, setUploadingAdditional] = useState(false);
   const [form, setForm] = useState(emptyProduct);
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => { fetchProducts(); fetchDrops(); }, []);
+
+  async function fetchDrops() {
+    const res = await fetch("/api/drops");
+    const data = await res.json();
+    setDrops(data);
+  }
 
   useEffect(() => {
     if (!embroideryOn) return;
@@ -178,7 +192,7 @@ export default function ProductsPage() {
           <label className="block text-xs font-medium mb-1 text-gray-600">Drop (Collection)</label>
           <select value={form.drop || ""} onChange={(e) => setForm({ ...form, drop: e.target.value || "" })} className="w-full px-3 py-2 rounded-lg border text-sm">
             <option value="">No drop (general catalog)</option>
-            {DROPS.map((d) => <option key={d.slug} value={d.slug}>{d.emoji} {d.name}{!d.active ? " (coming soon)" : ""}</option>)}
+            {drops.map((d) => <option key={d.slug} value={d.slug}>{d.emoji} {d.name}</option>)}
           </select>
         </div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.hasSize} onChange={(e) => setForm({ ...form, hasSize: e.target.checked })} />This product has sizes</label>

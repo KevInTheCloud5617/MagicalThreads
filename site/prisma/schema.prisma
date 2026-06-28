@@ -121,3 +121,17 @@ model ProductColor {
   @@index([productId])
   @@index([productId, sortOrder])
 }
+
+model Drop {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  tagline     String?
+  emoji       String?
+  colorFrom   String?  // gradient start color (hex)
+  colorTo     String?  // gradient end color (hex)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

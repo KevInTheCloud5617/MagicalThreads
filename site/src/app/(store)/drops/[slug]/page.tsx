@@ -1,109 +1,89 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { DROPS, CATEGORIES, getDropBySlug } from "@/lib/catalog";
 import prisma from "@/lib/db";
+import { CATEGORIES } from "@/lib/catalog";
 
-export async function generateStaticParams() {
-  return DROPS.map((drop) => ({ slug: drop.slug }));
+interface Drop {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  emoji: string | null;
+  colorFrom: string | null;
+  colorTo: string | null;
+  active: boolean;
 }
+
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const drop = getDropBySlug(slug);
-  if (!drop) return { title: "Drop Not Found" };
+  const drop: Drop | null = await prisma.drop.findUnique({ where: { slug } });
+
+  if (!drop) return { title: "Drop Not Found | Magical Threads" };
+
   return {
     title: `${drop.name} | Magical Threads`,
-    description: drop.description,
+    description: drop.tagline || `Shop the ${drop.name} collection at Magical Threads`,
   };
 }
 
 export default async function DropPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const drop = getDropBySlug(slug);
 
-  if (!drop) {
-    notFound();
-  }
+  const drop: Drop | null = await prisma.drop.findUnique({ where: { slug } });
+  if (!drop || !drop.active) notFound();
 
-  // If drop is not active yet, show coming soon
-  if (!drop.active) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
-        <div className="text-6xl mb-6">{drop.emoji}</div>
-        <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-bold text-navy mb-4 text-center">
-          {drop.name}
-        </h1>
-        <p className="text-xl text-text-muted mb-2">{drop.tagline}</p>
-        <div className="bg-gold/20 text-navy px-6 py-3 rounded-full font-medium mt-4">
-          ✨ Coming Soon ✨
-        </div>
-        <p className="text-text-muted mt-6 max-w-md text-center">
-          {drop.description}
-        </p>
-        <Link
-          href="/shop"
-          className="mt-8 text-gold hover:underline font-medium"
-        >
-          ← Browse all products
-        </Link>
-      </div>
-    );
-  }
-
-  // Fetch products for this drop
   const products = await prisma.product.findMany({
-    where: {
-      drop: slug,
-      active: true,
-    },
-    include: {
-      sizes: true,
-    },
+    where: { drop: slug, active: true },
+    include: { sizes: true },
     orderBy: { createdAt: "desc" },
   });
 
+  const colorFrom = drop.colorFrom || "#92400e";
+  const colorTo = drop.colorTo || "#c2410c";
+
   return (
-    <div>
-      {/* Hero Section with drop branding */}
-      <section className={`bg-gradient-to-br ${drop.color} py-20 text-center relative overflow-hidden`}>
+    <div className="bg-cream min-h-screen">
+      {/* Hero */}
+      <section
+        className="relative overflow-hidden"
+        style={{ background: `linear-gradient(to bottom right, ${colorFrom}, ${colorTo})` }}
+      >
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-10 left-[10%] text-white/20 text-2xl animate-sparkle">✦</div>
-          <div className="absolute bottom-8 right-[15%] text-white/15 text-xl animate-sparkle" style={{ animationDelay: "0.8s" }}>✧</div>
-          <div className="absolute top-1/3 right-[8%] text-white/10 text-3xl animate-sparkle" style={{ animationDelay: "1.5s" }}>✨</div>
+          <div className="absolute top-10 left-[10%] text-white/10 text-4xl">✦</div>
+          <div className="absolute top-20 right-[15%] text-white/10 text-5xl">{drop.emoji || "✨"}</div>
+          <div className="absolute bottom-12 left-[20%] text-white/10 text-3xl">✧</div>
+          <div className="absolute bottom-8 right-[12%] text-white/10 text-4xl">✦</div>
         </div>
-        <div className="relative z-10 max-w-3xl mx-auto px-4">
-          <div className="text-5xl mb-4">{drop.emoji}</div>
-          <p className="text-white/80 text-xs md:text-sm tracking-[0.35em] uppercase mb-3">
-            Collection Drop
-          </p>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-bold text-white mb-4">
+
+        <div className="relative z-10 mx-auto max-w-5xl px-4 py-16 md:py-24 text-center">
+          <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-6xl font-bold text-white leading-tight mb-4">
             {drop.name}
           </h1>
-          <div className="mx-auto mb-4 h-px w-40 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-          <p className="text-white/90 text-lg italic">
-            {drop.tagline}
-          </p>
-          <p className="text-white/75 text-base mt-4 max-w-xl mx-auto">
-            {drop.description}
-          </p>
+          {drop.tagline && (
+            <p className="font-[family-name:var(--font-inter)] text-white/85 text-lg md:text-xl max-w-2xl mx-auto italic">
+              {drop.tagline}
+            </p>
+          )}
         </div>
       </section>
 
-      {/* Products Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <p className="text-text-muted">
-            {products.length} {products.length === 1 ? "item" : "items"} in this drop
-          </p>
-          <Link href="/shop" className="text-gold hover:underline text-sm font-medium">
-            ← Back to all products
+      {/* Products */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/drops" className="text-navy hover:text-gold transition-colors text-sm">
+            ← Back to all drops
           </Link>
+          <span className="text-sm text-text-muted">
+            {products.length} {products.length === 1 ? "item" : "items"}
+          </span>
         </div>
 
         {products.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-text-muted text-lg mb-4">
-              Products for this drop are coming soon!
+            <p className="text-text-muted text-lg mb-6">
+              No products in this drop yet. Check back soon!
             </p>
             <Link
               href="/shop"
@@ -118,41 +98,53 @@ export default async function DropPage({ params }: { params: Promise<{ slug: str
               const totalStock = product.hasSize
                 ? product.sizes.reduce((sum: number, s: { stock: number }) => sum + s.stock, 0)
                 : product.stock;
+              const category = CATEGORIES.find((c) => c.slug === product.category);
 
               return (
                 <Link
-                  href={`/shop/${product.slug}`}
                   key={product.id}
-                  className="group bg-white rounded-2xl overflow-hidden border border-blue-pale hover:shadow-lg transition-all hover:-translate-y-1"
+                  href={`/shop/${product.slug}`}
+                  className="group bg-white rounded-2xl border border-blue-pale overflow-hidden hover:shadow-lg transition-all hover:-translate-y-0.5"
                 >
-                  <div className="aspect-square bg-gradient-to-br from-blue-pale to-blue-light/20 flex items-center justify-center relative overflow-hidden">
+                  <div className="aspect-square bg-gray-100 relative overflow-hidden">
                     {product.image ? (
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <span className="text-5xl opacity-25">
-                        {CATEGORIES.find((c) => c.slug === product.category)?.emoji || "🧵"}
+                      <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">
+                        {category?.emoji || "✨"}
+                      </div>
+                    )}
+                    {totalStock === 0 && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <span className="bg-white text-navy px-4 py-1.5 rounded-full text-sm font-semibold">
+                          Sold Out
+                        </span>
+                      </div>
+                    )}
+                    {product.tag && totalStock > 0 && (
+                      <span className="absolute top-3 left-3 bg-gold text-navy px-3 py-1 rounded-full text-xs font-semibold">
+                        {product.tag}
                       </span>
                     )}
                   </div>
                   <div className="p-4">
-                    <h3 className="font-[family-name:var(--font-display)] font-semibold text-navy group-hover:text-gold transition-colors">
+                    <h3 className="font-semibold text-navy group-hover:text-gold transition-colors line-clamp-2">
                       {product.name}
                     </h3>
-                    <p className="text-text-muted text-sm mt-1 line-clamp-2">
-                      {product.description}
-                    </p>
-                    <p className="text-gold font-semibold mt-2">
-                      ${product.price.toFixed(2)}
-                    </p>
-                    {totalStock <= 0 && (
-                      <p className="text-red-500 text-xs font-medium mt-1">Out of Stock</p>
-                    )}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-lg font-bold text-navy">
+                        ${product.price.toFixed(2)}
+                      </span>
+                      {category && (
+                        <span className="text-xs text-text-muted">
+                          {category.emoji} {category.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </Link>
               );
